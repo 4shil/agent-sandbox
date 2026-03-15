@@ -5,6 +5,7 @@ mod recorder;
 mod replay;
 mod limits;
 mod network;
+mod export;
 
 use anyhow::Result;
 use clap::Parser;
@@ -54,12 +55,10 @@ fn main() -> Result<()> {
             replay::replay_session(&session)?;
         }
         Commands::Export { session, output } => {
-            println!("📦 Export session: {} -> {}", session, output);
-            println!("   (Phase 3 feature)");
+            export::export_session(&session, &output)?;
         }
         Commands::Import { file } => {
-            println!("📥 Import session: {}", file);
-            println!("   (Phase 3 feature)");
+            export::import_session(&file)?;
         }
     }
 

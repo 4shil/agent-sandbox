@@ -13,3 +13,6 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
+tar = "0.4"
+flate2 = "1"
+walkdir = "2"

@@ -2,61 +2,127 @@
 
 > Isolated, Auditable, Portable AI Agent Runtime
 
-**Docker for AI agent sessions** — but lighter, faster, and purpose-built for code-generation agents.
+**Docker for AI agent sessions** — but lighter, faster, and built for code-generation agents.
+
+[![CI](https://github.com/4shil/agent-sandbox/actions/workflows/ci.yml/badge.svg)](https://github.com/4shil/agent-sandbox/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
 
 ## The Problem
 
 When you let an AI agent (Claude Code, Cursor, Copilot) work on your machine:
 
-- 🔓 **No sandbox** — agent runs as YOU, can access SSH keys, env vars
-- 🗑️ **Messy commits** — 47 garbage commits, no clear diff
-- ❌ **No audit trail** — "Why did the agent delete this?" impossible to trace
-- 🔁 **Not reproducible** — can't replay what the agent did
-- 📦 **No sharing** — can't send your session to a friend
-- ⏱️ **No resource limits** — agent eats all your RAM
+| Risk | What Happens |
+|------|--------------|
+| 🔓 **No sandbox** | Agent runs as YOU — can access SSH keys, env vars |
+| 🗑️ **Messy commits** | 47 garbage commits, no clear diff |
+| ❌ **No audit trail** | "Why did the agent delete this?" impossible to trace |
+| 🔁 **Not reproducible** | Can't replay what the agent did |
+| 📦 **No sharing** | Can't send your session to a friend |
+| ⏱️ **No limits** | Agent eats all your RAM |
 
 ## The Solution
 
 Agent Sandbox wraps any AI agent in a safe, recordable, replayable environment:
 
-| Feature | What It Does |
-|---------|--------------|
-| **FUSE Sandboxing** | Agent sees fake filesystem, real changes isolated |
-| **Deterministic Replay** | Record every tool call, replay later |
-| **Portable Sessions** | Export tar.gz, share, replay anywhere |
-| **Resource Limits** | CPU, memory, network, time constraints |
-| **Clean Diffs** | One clean diff, not 47 garbage commits |
+```
+$ agent-sandbox init my-project --template node
+✅ Sandbox 'my-project' created with Node template
+
+$ agent-sandbox run --agent claude "Build a todo API" --memory 2gb --timeout 30m
+🔌 Initializing sandbox filesystem...
+📝 Starting session recorder...
+🛡️  Resource limits: MEM: 2.0GB, TIME: 1800s
+✅ Task completed in 45.2s
+   Actions recorded: 127
+
+$ agent-sandbox diff my-project
+📁 src/index.ts
+  + import express from 'express';
+  + const app = express();
+
+$ agent-sandbox replay my-project
+╔══════════════════════════════════════════════════════════╗
+║  🔄 SESSION REPLAY                                       ║
+║  Agent: claude                                           ║
+║  Task: Build a todo API                                  ║
+║  Actions: 127                                            ║
+╚══════════════════════════════════════════════════════════╝
+[n]ext, [p]rev, [j]ump, [d]etails, [q]uit >
+
+$ agent-sandbox export my-project -o session.tar.gz
+📦 Exporting session...
+   Output: session.tar.gz (1.2MB)
+✅ Export complete
+```
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| 📁 **FUSE Sandbox** | Agent sees isolated filesystem, real changes recorded |
+| 🔄 **Session Replay** | Record every action, replay step-by-step |
+| 📦 **Portable Sessions** | Export as tar.gz, share anywhere |
+| 🛡️ **Resource Limits** | CPU, memory, timeout, disk constraints |
+| 🌐 **Network Control** | Block or whitelist specific domains |
+| 📊 **Clean Diffs** | One clean diff, not 47 garbage commits |
+| 🌐 **HTML Viewer** | Browser-based replay, works offline |
 
 ## Quick Start
 
-```bash
-# Install
-curl -sSL https://raw.githubusercontent.com/4shil/agent-sandbox/main/install.sh | bash
+### Install
 
-# Initialize sandbox
+```bash
+curl -sSL https://raw.githubusercontent.com/4shil/agent-sandbox/main/install.sh | bash
+```
+
+### Usage
+
+```bash
+# Create a sandbox
 agent-sandbox init my-project --template node
 
-# Run agent
-agent-sandbox run --agent claude "Build a todo API"
+# Run an agent task
+agent-sandbox run --agent claude "Build a REST API"
 
-# Review
+# Review changes
 agent-sandbox diff my-project
+
+# Replay the session
 agent-sandbox replay my-project
 
-# Share
-agent-sandbox export my-project --output session.tar.gz
+# Share with others
+agent-sandbox export my-project -o session.tar.gz
 ```
 
-## CLI Commands
+## Templates
 
+- `empty` — blank workspace
+- `node` — package.json + index.js
+- `python` — pyproject.toml + main.py
+- `rust` — Cargo.toml + src/main.rs
+
+## Resource Limits
+
+```bash
+agent-sandbox run --agent claude "task" \
+  --memory 2gb \
+  --cpu 10m \
+  --timeout 30m
 ```
-agent-sandbox init <name>     Create sandbox workspace
-agent-sandbox run             Run agent in sandbox
-agent-sandbox status          Show active sandboxes
-agent-sandbox diff <session>  Show clean diff
-agent-sandbox replay <session> Replay session
-agent-sandbox export          Package session for sharing
-agent-sandbox import          Load shared session
+
+## Network Control
+
+```bash
+# Block all network
+agent-sandbox run --agent claude "task" --no-network
+
+# Block all except specific domains
+agent-sandbox run --agent claude "task" \
+  --no-network \
+  --allow-domain api.openai.com \
+  --allow-domain github.com
 ```
 
 ## Use Cases
@@ -73,12 +139,8 @@ agent-sandbox import          Load shared session
 - **FUSE** — Filesystem sandboxing
 - **SQLite** — Session recording
 - **Linux namespaces** — Process isolation
-- **HTML + htmx** — Browser replay viewer
-
-## Status
-
-🚧 **In Development** — MVP coming soon
+- **htmx** — Browser replay viewer
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
