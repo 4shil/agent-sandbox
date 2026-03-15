@@ -16,7 +16,7 @@ use crate::recorder::Recorder;
 
 #[derive(Parser)]
 #[command(name = "abox")]
-#[command(about = "🛡️  Transparent sandbox for AI coding agents")]
+#[command(about = "sandbox for ai coding agents")]
 #[command(long_about = "Launch any AI agent inside an isolated sandbox.\n\n  abox claude          launch Claude\n  abox opencode        launch OpenCode\n  abox list            show recorded sessions\n  abox replay <id>     replay a session")]
 #[command(after_help = "SESSIONS\n  abox list              list all sessions\n  abox inspect <id>      show session details\n  abox replay <id>       step-through replay\n  abox export <id> -o f  export as tar.gz\n  abox import <file>     import shared session\n  abox clean --days 7    remove old sessions")]
 struct Cli {

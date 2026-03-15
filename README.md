@@ -1,8 +1,17 @@
-# 🛡️ abox
+# abox
+
+```
+    _____
+   /     \
+  | () () |    abox
+   \  ^  /    ─────────────────────
+    |||||     sandbox for ai agents
+    |||||
+```
 
 > Transparent sandbox for AI coding agents
 
-Your agent works the same. abox just wraps it in a sandbox and records everything.
+Your agent works the same. abox wraps it in a sandbox and records everything.
 
 ```
 $ abox claude
@@ -23,102 +32,123 @@ curl -sSL https://raw.githubusercontent.com/4shil/agent-sandbox/main/install.sh 
 ### Launch agent
 
 ```bash
-$ abox claude              # launches Claude in sandbox
-$ abox opencode            # launches OpenCode in sandbox
-$ abox codex               # launches Codex in sandbox
+$ abox claude              # launch Claude
+$ abox opencode            # launch OpenCode
+$ abox codex               # launch Codex
 ```
 
-You interact with the agent normally. Session is recorded silently in the background.
+Just works. Session recorded in the background.
+
+### No args? Auto-detect.
+
+```bash
+$ abox
+
+    _____
+   /     \
+  | () () |    abox
+   \  ^  /    ─────────────────────
+    |||||     sandbox for ai agents
+
+  Usage: abox <agent>
+
+  Detected agents:
+    [ ] claude       Claude Code
+    [✓] opencode     OpenCode
+    [✓] gemini       Google Gemini CLI
+
+  Commands:
+    abox init           setup wizard
+    abox list           show sessions
+    abox dashboard      interactive dashboard
+    abox status         quick status
+```
 
 ---
 
-### Session Management
+## Session Management
 
-#### List sessions
+### List sessions
 
 ```bash
 $ abox list
 
-📦 Sessions
-
-  opencode-20260315-144537            1 sessions
-  claude-20260315-123000              3 sessions
-  codex-20260315-110000               2 sessions
+  +------------------------------------------+
+  |  SESSION                     FILES       |
+  +------------------------------------------+
+  |  opencode-20260315-144537          1      |
+  |  claude-20260315-123000            3      |
+  |  codex-20260315-110000             2      |
+  +------------------------------------------+
 ```
 
-#### Inspect a session
+### Inspect a session
 
 ```bash
 $ abox inspect opencode-20260315-144537
 
-🔍 Session Details
-
-  ID:        a1b2c3d4-...
-  Agent:     opencode
-  Sandbox:   opencode-20260315-144537
-  Duration:  45.2s
-  Actions:   12
-
-  Actions:
-    session              1
-    file_modified        8
-    task_end             1
+  +------------------------------------------+
+  |  Session Details                         |
+  +------------------------------------------+
+  |  ID:       a1b2c3d4...
+  |  Agent:    opencode
+  |  Duration: 45.2s
+  |  Actions:  12
+  +------------------------------------------+
 ```
 
-#### Replay a session
+### Replay a session
 
 ```bash
 $ abox replay opencode-20260315-144537
 
-🔄 Session Replay
-   Agent: opencode | Actions: 12
+  [~] Session Replay
+  Agent: opencode | Actions: 12
 
-┌─ [1/12] ──────────────────────────────
-│ Type: session
-├───────────────────────────────────────
-│ agent: opencode
-│ duration_ms: 45234
-└───────────────────────────────────────
+  ┌─ [1/12]
+  │ session
+  ├─────────────────────────────
+  │ agent: opencode
+  │ duration_ms: 45234
+  └─────────────────────────────
 
-[n]ext [p]rev [d]etails [q]uit >
+  [n]ext  [p]rev  [d]etails  [q]uit >
 ```
 
 ---
 
-### Export & Share
-
-#### Export a session
+## Export & Share
 
 ```bash
-$ abox export opencode-20260315-144537 -o my-session.tar.gz
+$ abox export opencode-20260315-144537 -o session.tar.gz
+  [*] Exporting...
+  [+] Done → session.tar.gz
 
-📦 Exporting session...
-   opencode-20260315-144537 → my-session.tar.gz (1.2MB)
-```
-
-#### Import a shared session
-
-```bash
-$ abox import my-session.tar.gz
-
-📥 Importing session...
-   Agent: opencode
-   Actions: 12
-   Imported to: ~/.agent-sandbox/imports
+$ abox import session.tar.gz
+  [*] Importing...
+  Agent: opencode
+  Actions: 12
 ```
 
 ---
 
-### Cleanup
-
-#### Clean old sessions
+## Dashboard
 
 ```bash
-$ abox clean --days 7
-🗑️  Removed 5 old sessions (older than 7 days)
+$ abox dashboard
 
-$ abox clean               # default: 30 days
-🗑️  Removed 12 old sessions (older than 30 days)
+  +========================================+
+  |   abox dashboard                       |
+  +========================================+
+  | Sessions:                            12 |
+  | Disk used:                        8.9 MB |
+  +========================================+
+
+  Recent sessions:
+    opencode-20260315-144537            1 sessions
+    claude-20260315-123000              3 sessions
+
+  [L]ist  [C]lean  [R]un  [Q]uit
 ```
 
 ---
@@ -128,12 +158,28 @@ $ abox clean               # default: 30 days
 | Command | Description |
 |---------|-------------|
 | `abox <agent>` | Launch agent in sandbox |
+| `abox init` | First-run setup wizard |
+| `abox status` | Quick status |
+| `abox dashboard` | Interactive dashboard |
 | `abox list` | List all sessions |
 | `abox inspect <id>` | Show session details |
 | `abox replay <id>` | Step-through replay |
-| `abox export <id> -o file.tar.gz` | Export session |
-| `abox import <file.tar.gz>` | Import session |
+| `abox export <id> -o f` | Export as tar.gz |
+| `abox import <file>` | Import shared session |
 | `abox clean --days 7` | Clean old sessions |
+| `abox completions bash` | Shell tab completions |
+
+---
+
+## Config
+
+First run `abox init` or create `~/.aboxrc`:
+
+```bash
+ABOX_DEFAULT_AGENT="opencode"
+ABOX_MEMORY_LIMIT=""
+ABOX_TIMEOUT=""
+```
 
 ---
 
@@ -142,48 +188,11 @@ $ abox clean               # default: 30 days
 ```
 $ abox opencode
 
-1. Creates isolated workspace
-   ~/.agent-sandbox/workspaces/opencode-20260315-144537/
-
-2. Launches opencode inside sandbox
-   (all env vars passed through — API keys work)
-
+1. Creates ~/.agent-sandbox/workspaces/opencode-<timestamp>/
+2. Launches opencode (all env vars passed through)
 3. You work normally
-   (stdin/stdout/stderr all passthrough)
-
-4. On exit, session is recorded
-   ~/.agent-sandbox/workspaces/.../logs/<session-id>.json
+4. Session saved on exit
 ```
-
----
-
-## Sessions Location
-
-```bash
-~/.agent-sandbox/
-├── workspaces/
-│   ├── opencode-20260315-144537/
-│   │   ├── .sandbox-merged/      # agent workspace
-│   │   └── logs/
-│   │       └── <session-id>.json  # recorded session
-│   └── claude-20260315-123000/
-│       └── logs/
-├── imports/                       # imported sessions
-└── sandboxes.db                   # sqlite database
-```
-
----
-
-## Supported Agents
-
-Any CLI binary works:
-
-- `abox claude` — Claude Code
-- `abox codex` — OpenAI Codex
-- `abox opencode` — OpenCode
-- `abox gemini` — Google Gemini
-- `abox aider` — Aider
-- `abox <anything>` — any binary
 
 ---
 

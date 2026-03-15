@@ -11,37 +11,52 @@ const KNOWN_AGENTS: &[(&str, &str, &str)] = &[
     ("goose", "Block Goose", "pip install goose-ai"),
 ];
 
+const LOGO: &str = r#"
+    _____
+   /     \
+  | () () |    abox
+   \  ^  /    ─────────────────────
+    |||||     sandbox for ai agents
+    |||||
+"#;
+
+const DASHBOARD_HEADER: &str = r#"
+  +========================================+
+  |   abox  /  session dashboard           |
+  +========================================+"#;
+
 /// Show quick help when no args provided
 pub fn show_quick_help() {
+    println!("{}", LOGO.dimmed());
+    println!("  Usage: abox <agent>");
     println!();
-    println!("  {}", "🛡️ abox".bold());
-    println!("  {}", "Transparent sandbox for AI coding agents".dimmed());
-    println!();
-    println!("  {} {}", "Usage:".bold(), "abox <agent>".cyan());
-    println!();
-    println!("  Common agents:");
+    println!("  Detected agents:");
     for (name, desc, _) in KNOWN_AGENTS {
         let installed = which::which(name).is_ok();
-        let status = if installed { "✅".to_string() } else { "  ".dimmed().to_string() };
-        println!("    {} {:<12} {}", status, name.cyan(), desc.dimmed());
+        let mark = if installed { "✓" } else { " " };
+        println!("    [{}] {:<12} {}", 
+            mark.green(), 
+            name.cyan(), 
+            desc.dimmed());
     }
     println!();
-    println!("  Other commands:");
-    println!("    {:<15} {}", "abox init".cyan(), "first-run setup wizard".dimmed());
-    println!("    {:<15} {}", "abox list".cyan(), "show sessions".dimmed());
-    println!("    {:<15} {}", "abox dashboard".cyan(), "interactive dashboard".dimmed());
-    println!("    {:<15} {}", "abox status".cyan(), "quick status".dimmed());
+    println!("  Commands:");
+    println!("    abox init           setup wizard");
+    println!("    abox list           show sessions");
+    println!("    abox dashboard      interactive dashboard");
+    println!("    abox status         quick status");
+    println!("    abox --help         full help");
     println!();
 }
 
 /// Show first-run tip
 pub fn show_first_run_tip(agent: &str, sandbox_name: &str) {
     println!();
-    println!("  {}", "💡 First session!".yellow().bold());
-    println!("  Agent: {}", agent.cyan());
-    println!("  Sandbox: {}", sandbox_name.dimmed());
-    println!("  Everything is recorded. Work normally!");
-    println!("  Use {} to see sessions later.", "abox list".cyan());
+    println!("  ┌──────────────────────────────────────────┐");
+    println!("  │  First session! Everything is recorded.   │");
+    println!("  │  Agent: {:<32} │", agent.cyan());
+    println!("  │  Run 'abox list' to see sessions later.  │");
+    println!("  └──────────────────────────────────────────┘");
     println!();
 }
 
@@ -55,65 +70,60 @@ pub fn show_session_complete(sandbox_name: &str, duration_ms: u64, session_id: &
     };
     
     println!();
-    println!("  {} Session saved", "✓".green());
-    println!("  {} {} {}", "ID:".dimmed(), session_id[..8].cyan(), "...".dimmed());
-    println!("  {} {}", "Time:".dimmed(), time_str.dimmed());
+    println!("  [+] Session saved");
+    println!("  | ID:     {}...", &session_id[..8].cyan());
+    println!("  | Time:   {}", time_str.dimmed());
+    println!("  | Use 'abox inspect {}' to view details", &session_id[..8]);
     println!();
 }
 
 /// Show agent not found with install help
 pub fn show_agent_not_found(agent: &str) {
     println!();
-    println!("  {} {} not found", "❌".red(), agent.red().bold());
+    println!("  [!] Agent not found: {}", agent.red().bold());
     
-    // Check if we know how to install it
     for (name, desc, install_cmd) in KNOWN_AGENTS {
         if *name == agent {
-            println!("  {}", desc.dimmed());
-            println!("  Install with: {}", install_cmd.green());
+            println!("  | {}", desc.dimmed());
+            println!("  | Install: {}", install_cmd.green());
             println!();
             return;
         }
     }
     
-    // Unknown agent
-    println!("  {}", "Unknown agent. Install it and make sure it's in your PATH.".dimmed());
-    println!("  {} {}", "Known agents:".dimmed(), KNOWN_AGENTS.iter().map(|(n, _, _)| *n).collect::<Vec<_>>().join(", ").cyan());
+    println!("  | Unknown agent. Install it and ensure it's in PATH");
+    println!("  | Known: {}", KNOWN_AGENTS.iter().map(|(n, _, _)| *n).collect::<Vec<_>>().join(", ").cyan());
     println!();
 }
 
 /// First-run setup wizard
 pub fn run_wizard() -> Result<()> {
     println!();
-    println!("  {}", "🛡️ abox setup wizard".bold());
-    println!("  {}", "Let's get you started".dimmed());
-    println!();
-    println!("  {}", "─── Detecting agents ───".dimmed());
+    println!("  +========================================+");
+    println!("  |   abox setup wizard                    |");
+    println!("  +========================================+");
     println!();
 
     let mut found = Vec::new();
     for (name, desc, install) in KNOWN_AGENTS {
         if which::which(name).is_ok() {
-            println!("    {} {} ({})", "✅".green(), name.cyan(), desc);
+            println!("    [✓] {:<12} {}", name.cyan(), desc.dimmed());
             found.push(*name);
         } else {
-            println!("    {} {} — {}", "  ".dimmed(), name.dimmed(), install.dimmed());
+            println!("    [ ] {:<12} {}", name.dimmed(), format!("install: {}", install).dimmed());
         }
     }
 
     println!();
     if found.is_empty() {
-        println!("  {}", "No agents found. Install one first!".yellow());
-        println!();
-        println!("  Recommended:");
-        println!("    npm i -g opencode-ai    {}", "(free)".green());
+        println!("  No agents found. Install one first:");
+        println!("    npm i -g opencode-ai  (free)");
     } else {
-        println!("  Found {} agent{}: {}", found.len(), if found.len() == 1 { "" } else { "s" }, found.join(", ").cyan());
+        println!("  Found {} agent(s): {}", found.len(), found.join(", ").cyan());
     }
 
-    // Ask for default
     println!();
-    print!("  Default agent? [{}] > ", found.first().unwrap_or(&"claude").cyan());
+    print!("  Default agent [{}] > ", found.first().unwrap_or(&"claude").cyan());
     io::stdout().flush()?;
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -124,10 +134,9 @@ pub fn run_wizard() -> Result<()> {
         default_agent.to_string()
     };
 
-    // Save config
     let home = std::env::var("HOME")?;
     let config_path = format!("{}/.aboxrc", home);
-    let config = format!(r#"# abox config (auto-generated)
+    let config = format!(r#"# abox config
 ABOX_DEFAULT_AGENT="{}"
 ABOX_MEMORY_LIMIT=""
 ABOX_TIMEOUT=""
@@ -135,10 +144,8 @@ ABOX_TIMEOUT=""
     std::fs::write(&config_path, config)?;
 
     println!();
-    println!("  {} Config saved to {}", "✓".green(), config_path.dimmed());
-    println!();
-    println!("  You're ready! Try:");
-    println!("    {}", format!("abox {}", default_agent).cyan());
+    println!("  [+] Config saved to {}", config_path.dimmed());
+    println!("  | Try: {}", format!("abox {}", default_agent).cyan());
     println!();
 
     Ok(())
@@ -148,18 +155,14 @@ ABOX_TIMEOUT=""
 pub fn show_status() -> Result<()> {
     let home = std::env::var("HOME")?;
     let workspaces_dir = format!("{}/.agent-sandbox/workspaces", home);
-    let imports_dir = format!("{}/.agent-sandbox/imports", home);
 
-    // Count sessions
     let session_count = std::fs::read_dir(&workspaces_dir)
         .map(|d| d.filter_map(|e| e.ok()).count())
         .unwrap_or(0);
 
-    // Calculate disk usage
-    let disk_usage = get_dir_size(&workspaces_dir) + get_dir_size(&imports_dir);
+    let disk_usage = get_dir_size(&workspaces_dir);
     let disk_str = format_size(disk_usage);
 
-    // Find last session
     let last_session = std::fs::read_dir(&workspaces_dir)
         .ok()
         .and_then(|d| {
@@ -172,27 +175,26 @@ pub fn show_status() -> Result<()> {
             entries.first().map(|e| e.file_name().to_string_lossy().to_string())
         });
 
-    // Check for .aboxrc config
     let config_path = format!("{}/.aboxrc", home);
     let has_config = std::path::Path::new(&config_path).exists();
 
     println!();
-    println!("  {}", "🛡️ abox status".bold());
-    println!();
-    println!("  {:<15} {}", "Sessions:".bold(), session_count);
-    println!("  {:<15} {}", "Disk used:".bold(), disk_str);
+    println!("  +==========================================+");
+    println!("  |   abox status                            |");
+    println!("  +==========================================+");
+    println!("  |  Sessions:   {:>25} |", session_count);
+    println!("  |  Disk used:  {:>25} |", disk_str);
     if let Some(last) = last_session {
-        println!("  {:<15} {}", "Last session:".bold(), last.cyan());
+        println!("  |  Last:       {:>25} |", &last[..last.len().min(25)]);
     }
-    let config_display = if has_config { config_path.green().to_string() } else { "(none)".dimmed().to_string() };
-    println!("  {:<15} {}", "Config:".bold(), config_display);
-    
-    // Check for old sessions needing cleanup
+    println!("  |  Config:     {:>25} |", if has_config { "exists" } else { "none" });
+    println!("  +==========================================+");
+
     let old_count = count_old_sessions(&workspaces_dir, 30);
     if old_count > 0 {
         println!();
-        println!("  {} {} sessions older than 30 days", "💡".yellow(), old_count);
-        println!("  Run {} to free space", "abox clean".cyan());
+        println!("  [!] {} sessions older than 30 days", old_count);
+        println!("  | Run 'abox clean' to free space");
     }
     
     println!();
@@ -205,7 +207,6 @@ pub fn show_dashboard() -> Result<()> {
     let workspaces_dir = format!("{}/.agent-sandbox/workspaces", home);
 
     loop {
-        // Clear screen
         print!("\x1B[2J\x1B[1;1H");
         
         let session_count = std::fs::read_dir(&workspaces_dir)
@@ -216,17 +217,18 @@ pub fn show_dashboard() -> Result<()> {
         let old_count = count_old_sessions(&workspaces_dir, 30);
 
         println!();
-        println!("  ┌──────────────────────────────────────────────┐");
-        println!("  │  {}                                        │", "🛡️ abox dashboard".bold());
-        println!("  ├──────────────────────────────────────────────┤");
-        println!("  │  {:<20} {:>20}  │", "Sessions".dimmed(), session_count);
-        println!("  │  {:<20} {:>20}  │", "Disk used".dimmed(), format_size(disk_usage));
-        println!("  │  {:<20} {:>20}  │", "Old sessions".dimmed(), if old_count > 0 { format!("{} ⚠️", old_count).yellow().to_string() } else { "none".to_string() });
-        println!("  └──────────────────────────────────────────────┘");
+        println!("  +========================================+");
+        println!("  |   abox dashboard                       |");
+        println!("  +========================================+");
+        println!("  | Sessions:    {:>20} |", session_count);
+        println!("  | Disk used:   {:>20} |", format_size(disk_usage));
+        if old_count > 0 {
+            println!("  | Old:         {:>20} |", format!("{} sessions", old_count));
+        }
+        println!("  +========================================+");
         println!();
 
-        // Recent sessions
-        println!("  {}", "Recent sessions:".bold());
+        println!("  Recent sessions:");
         if let Ok(entries) = std::fs::read_dir(&workspaces_dir) {
             let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
             entries.sort_by(|a, b| {
@@ -256,25 +258,24 @@ pub fn show_dashboard() -> Result<()> {
             "l" | "list" => {
                 println!();
                 drop(super::session::list_sessions());
-                println!("\nPress Enter to continue...");
+                println!("  Press Enter to continue...");
                 let _ = io::stdin().read_line(&mut String::new());
             }
             "c" | "clean" => {
                 println!();
                 drop(super::session::clean_sessions(30));
-                println!("\nPress Enter to continue...");
+                println!("  Press Enter to continue...");
                 let _ = io::stdin().read_line(&mut String::new());
             }
             "r" | "run" => {
                 println!();
-                println!("  Exit dashboard and run an agent:");
                 print!("  Agent name > ");
                 io::stdout().flush()?;
                 let mut agent = String::new();
                 io::stdin().read_line(&mut agent)?;
                 let agent = agent.trim();
                 if !agent.is_empty() {
-                    return Ok(()); // Return, main will handle agent launch
+                    return Ok(());
                 }
             }
             "q" | "quit" | "" => break,
@@ -302,7 +303,7 @@ fn get_dir_size(path: &str) -> u64 {
     total
 }
 
-fn format_size(bytes: u64) -> String {
+pub fn format_size(bytes: u64) -> String {
     if bytes >= 1024 * 1024 * 1024 {
         format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     } else if bytes >= 1024 * 1024 {

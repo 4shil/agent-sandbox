@@ -31,8 +31,9 @@ pub fn list_sessions() -> Result<()> {
     entries.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
 
     println!();
-    println!("  {:<40} {:>10}", "SESSION".bold(), "FILES".bold());
-    println!("  {}", "─".repeat(52).dimmed());
+    println!("  +------------------------------------------+");
+    println!("  |  {:<20} {:>15}  |", "SESSION".bold(), "FILES".bold());
+    println!("  +------------------------------------------+");
 
     for entry in &entries {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -41,8 +42,9 @@ pub fn list_sessions() -> Result<()> {
             .map(|d| d.filter_map(|e| e.ok()).count())
             .unwrap_or(0);
         
-        println!("  {:<40} {:>10}", name.cyan(), session_count);
+        println!("  |  {:<20} {:>15}  |", name.cyan(), session_count);
     }
+    println!("  +------------------------------------------+");
     println!();
     Ok(())
 }
@@ -53,12 +55,16 @@ pub fn inspect_session(id: &str) -> Result<()> {
     let session: recorder::SessionRecord = serde_json::from_str(&content)?;
 
     println!();
-    println!("  {:<15} {}", "ID".bold(), session.id.cyan());
-    println!("  {:<15} {}", "Agent".bold(), session.agent.green());
+    println!("  +------------------------------------------+");
+    println!("  |  Session Details                         |");
+    println!("  +------------------------------------------+");
+    println!("  |  ID:       {}", session.id.cyan());
+    println!("  |  Agent:    {}", session.agent.green());
     if let Some(dur) = session.duration_ms {
-        println!("  {:<15} {}", "Duration".bold(), format!("{:.1}s", dur as f64 / 1000.0).yellow());
+        println!("  |  Duration: {}", format!("{:.1}s", dur as f64 / 1000.0).yellow());
     }
-    println!("  {:<15} {}", "Actions".bold(), session.actions.len());
+    println!("  |  Actions:  {}", session.actions.len());
+    println!("  +------------------------------------------+");
 
     let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for action in &session.actions {
@@ -83,7 +89,7 @@ pub fn replay_session(id: &str) -> Result<()> {
     let session: recorder::SessionRecord = serde_json::from_str(&content)?;
 
     println!();
-    println!("  {}", "🔄 Session Replay".bold());
+    println!("  [~] Session Replay");
     println!("  Agent: {} | Actions: {}", session.agent.green(), session.actions.len());
     println!();
 
@@ -134,7 +140,7 @@ pub fn export_session(id: &str, output: &str) -> Result<()> {
     let session_dir = path.parent().unwrap().parent().unwrap();
 
     println!();
-    println!("  📦 Exporting...");
+    println!("  [*] Exporting...");
 
     let status = std::process::Command::new("tar")
         .arg("-czf")
@@ -162,7 +168,7 @@ pub fn import_session(file: &str) -> Result<()> {
     std::fs::create_dir_all(&import_dir)?;
 
     println!();
-    println!("  📥 Importing...");
+    println!("  [*] Importing...");
 
     std::process::Command::new("tar")
         .arg("-xzf")
@@ -209,7 +215,7 @@ pub fn clean_sessions(days: u64) -> Result<()> {
     if removed == 0 {
         println!("  No sessions older than {} days.", days);
     } else {
-        println!("  {} Removed {} session{}, freed {}", "✓".green(), removed, if removed == 1 { "" } else { "s" }, format_size(freed));
+        println!("  [+] Removed {} session{}, freed {}", removed, if removed == 1 { "" } else { "s" }, format_size(freed));
     }
     println!();
     Ok(())
