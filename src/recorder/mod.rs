@@ -17,6 +17,7 @@ pub struct ActionRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionRecord {
     pub id: String,
+    #[serde(alias = "sandbox_name")]
     pub sandbox: String,
     pub agent: String,
     pub started_at: u64,

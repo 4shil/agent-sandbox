@@ -15,7 +15,8 @@ use crate::recorder::Recorder;
 
 #[derive(Parser)]
 #[command(name = "abox")]
-#[command(about = "🛡️  Sandbox for AI agents")]
+#[command(about = "🛡️  Transparent sandbox for AI coding agents")]
+#[command(long_about = "Launch any AI agent inside an isolated sandbox.\n\n  abox claude          launch Claude\n  abox opencode        launch OpenCode\n  abox list            show recorded sessions\n  abox replay <id>     replay a session")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -150,12 +151,9 @@ fn get_workspaces_dir() -> PathBuf {
 
 fn list_sessions() -> Result<()> {
     let dir = get_workspaces_dir();
-    println!();
-    println!("📦 Sessions");
-    println!();
 
     if !dir.exists() {
-        println!("  (no sessions yet)");
+        println!("\n  No sessions yet.\n");
         return Ok(());
     }
 
@@ -166,6 +164,10 @@ fn list_sessions() -> Result<()> {
     
     entries.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
 
+    println!();
+    println!("  {:<40} {:>10}", "SESSION".bold(), "FILES".bold());
+    println!("  {}", "─".repeat(52).dimmed());
+
     for entry in &entries {
         let name = entry.file_name().to_string_lossy().to_string();
         let logs_dir = entry.path().join("logs");
@@ -173,7 +175,7 @@ fn list_sessions() -> Result<()> {
             .map(|d| d.filter_map(|e| e.ok()).count())
             .unwrap_or(0);
         
-        println!("  {:<35} {} sessions", name.cyan(), session_count);
+        println!("  {:<40} {:>10}", name.cyan(), session_count);
     }
     println!();
     Ok(())
@@ -185,16 +187,12 @@ fn inspect_session(id: &str) -> Result<()> {
     let session: recorder::SessionRecord = serde_json::from_str(&content)?;
 
     println!();
-    println!("🔍 Session Details");
-    println!();
-    println!("  {} {}", "ID:".bold(), session.id.cyan());
-    println!("  {} {}", "Agent:".bold(), session.agent.green());
-    println!("  {} {}", "Sandbox:".bold(), session.sandbox.cyan());
+    println!("  {:<15} {}", "ID".bold(), session.id.cyan());
+    println!("  {:<15} {}", "Agent".bold(), session.agent.green());
     if let Some(dur) = session.duration_ms {
-        println!("  {} {}", "Duration:".bold(), format!("{:.1}s", dur as f64 / 1000.0).yellow());
+        println!("  {:<15} {}", "Duration".bold(), format!("{:.1}s", dur as f64 / 1000.0).yellow());
     }
-    println!("  {} {}", "Actions:".bold(), session.actions.len().to_string().green());
-    println!();
+    println!("  {:<15} {}", "Actions".bold(), session.actions.len());
 
     // Action breakdown
     let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -203,13 +201,14 @@ fn inspect_session(id: &str) -> Result<()> {
     }
 
     if !counts.is_empty() {
-        println!("  {}", "Actions:".bold());
+        println!();
+        println!("  {}", "Actions".bold());
         for (t, c) in &counts {
             println!("    {:<20} {}", t.cyan(), c);
         }
-        println!();
     }
 
+    println!();
     Ok(())
 }
 
