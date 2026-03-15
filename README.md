@@ -1,4 +1,4 @@
-# 🛡️ abox
+#  Abox
 
 > Isolated, Auditable, Portable AI Agent Runtime
 
@@ -10,7 +10,7 @@
 
 ---
 
-## Why abox?
+## Why Abox?
 
 You let Claude Code / Cursor / Codex build something on your machine. It:
 
