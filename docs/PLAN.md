@@ -218,7 +218,7 @@ Full filesystem/network audit trail of what the agent accessed
 
 ---
 
-## 12. Why It'll Trend
+## 12. Why
 
 | Factor | Why |
 |--------|-----|
