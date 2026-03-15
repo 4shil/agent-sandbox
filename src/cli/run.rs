@@ -6,9 +6,10 @@ use std::time::SystemTime;
 use crate::db;
 use crate::sandbox::SandboxFs;
 use crate::recorder::Recorder;
+use crate::limits::ResourceLimits;
+use crate::network::NetworkPolicy;
 
-pub fn run_agent(agent: &str, task: &str, sandbox_name: &str) -> Result<()> {
-    // Get workspace path from DB
+pub fn run_agent(agent: &str, task: &str, sandbox_name: &str, limits: &ResourceLimits, network: &NetworkPolicy) -> Result<()> {
     let conn = db::get_connection()?;
     let workspace_path: String = conn.query_row(
         "SELECT workspace_path FROM sandboxes WHERE name = ?1",
@@ -26,20 +27,23 @@ pub fn run_agent(agent: &str, task: &str, sandbox_name: &str) -> Result<()> {
     println!("📝 Starting session recorder...");
     let mut recorder = Recorder::new(sandbox_name, agent, task, &logs_dir)?;
 
+    println!("🛡️  Resource limits: {}", limits.describe());
+    println!("🌐 {}", network.describe());
     println!("🤖 Launching {} with task: {}", agent, task);
     println!("   Session ID: {}", recorder.session_id());
     println!("   Workspace: {}", workspace.display());
+    println!();
 
-    // Record task start
     recorder.record_action("task_start", serde_json::json!({
         "agent": agent,
         "task": task,
         "workspace": workspace.to_string_lossy(),
+        "limits": limits.describe(),
+        "network": network.describe(),
     }))?;
 
     let start = SystemTime::now();
 
-    // Run the actual agent command
     let output = match agent {
         "claude" => Command::new("claude")
             .arg("--print")
@@ -47,6 +51,10 @@ pub fn run_agent(agent: &str, task: &str, sandbox_name: &str) -> Result<()> {
             .current_dir(sfs.agent_root())
             .output(),
         "codex" => Command::new("codex")
+            .arg(task)
+            .current_dir(sfs.agent_root())
+            .output(),
+        "echo" => Command::new("echo")
             .arg(task)
             .current_dir(sfs.agent_root())
             .output(),
@@ -63,7 +71,6 @@ pub fn run_agent(agent: &str, task: &str, sandbox_name: &str) -> Result<()> {
             let stdout = String::from_utf8_lossy(&result.stdout);
             let stderr = String::from_utf8_lossy(&result.stderr);
 
-            // Record exec
             recorder.record_exec(
                 &format!("{} {}", agent, task),
                 &stdout,
@@ -72,15 +79,15 @@ pub fn run_agent(agent: &str, task: &str, sandbox_name: &str) -> Result<()> {
                 duration,
             )?;
 
-            // Record modified files
             for file in sfs.modified_files()? {
                 recorder.record_action("file_modified", serde_json::json!({
                     "path": file.strip_prefix(&workspace)?.to_string_lossy(),
                 }))?;
             }
 
-            println!("\n✅ Task completed in {:.1}s", duration as f64 / 1000.0);
+            println!("✅ Task completed in {:.1}s", duration as f64 / 1000.0);
             println!("   Exit code: {:?}", result.status.code());
+            println!("   Actions recorded: {}", recorder.action_count());
             println!("   Session: {}", logs_dir.join(format!("{}.json", recorder.session_id())).display());
 
             if !stdout.is_empty() {

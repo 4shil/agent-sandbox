@@ -38,6 +38,26 @@ pub enum Commands {
 
         /// Task description
         task: String,
+
+        /// Max memory (e.g., "2gb", "512mb")
+        #[arg(long)]
+        memory: Option<String>,
+
+        /// Max CPU time (e.g., "10m", "1h", "600")
+        #[arg(long)]
+        cpu: Option<String>,
+
+        /// Max timeout (e.g., "30m", "1h")
+        #[arg(long)]
+        timeout: Option<String>,
+
+        /// Block network access
+        #[arg(long)]
+        no_network: bool,
+
+        /// Allow network to these domains (repeatable)
+        #[arg(long)]
+        allow_domain: Vec<String>,
     },
 
     /// Show diff of a session

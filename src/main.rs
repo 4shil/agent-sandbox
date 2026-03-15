@@ -2,6 +2,9 @@ mod cli;
 mod db;
 mod sandbox;
 mod recorder;
+mod replay;
+mod limits;
+mod network;
 
 use anyhow::Result;
 use clap::Parser;
@@ -28,21 +31,27 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Run { agent, sandbox, task } => {
+        Commands::Run { agent, sandbox, task, memory, cpu, timeout, no_network, allow_domain } => {
             let sandbox_name = sandbox.unwrap_or_else(|| {
                 db::list_sandboxes()
                     .ok()
                     .and_then(|s| s.into_iter().next().map(|sb| sb.name))
                     .unwrap_or_else(|| "default".to_string())
             });
-            cli::run::run_agent(&agent, &task, &sandbox_name)?;
+            let limits = limits::ResourceLimits::from_args(
+                memory.as_deref(),
+                cpu.as_deref(),
+                timeout.as_deref(),
+                None,
+            )?;
+            let network_policy = network::NetworkPolicy::new(no_network, allow_domain);
+            cli::run::run_agent(&agent, &task, &sandbox_name, &limits, &network_policy)?;
         }
         Commands::Diff { session } => {
             cli::diff::show_diff(&session)?;
         }
         Commands::Replay { session } => {
-            println!("🔁 Replay session: {}", session);
-            println!("   (Phase 2 feature)");
+            replay::replay_session(&session)?;
         }
         Commands::Export { session, output } => {
             println!("📦 Export session: {} -> {}", session, output);
