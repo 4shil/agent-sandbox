@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-const DB_DIR: &str = "~/.agent-sandbox";
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Sandbox {
     pub name: String,

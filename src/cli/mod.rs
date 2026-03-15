@@ -1,4 +1,7 @@
-use clap::{Parser, Subcommand, ValueEnum};
+pub mod run;
+pub mod diff;
+
+pub use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(name = "agent-sandbox")]
@@ -29,13 +32,17 @@ pub enum Commands {
         #[arg(short, long, default_value = "claude")]
         agent: String,
 
+        /// Sandbox name (defaults to first active)
+        #[arg(short, long)]
+        sandbox: Option<String>,
+
         /// Task description
         task: String,
     },
 
     /// Show diff of a session
     Diff {
-        /// Session name or ID
+        /// Session file path or ID
         session: String,
     },
 
