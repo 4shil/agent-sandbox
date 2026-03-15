@@ -13,9 +13,10 @@ use crate::recorder::Recorder;
 
 #[derive(Parser)]
 #[command(name = "abox")]
-#[command(about = "🛡️  Invisible sandbox for AI coding agents")]
+#[command(about = "🛡️  Sandbox for AI agents")]
+#[command(long_about = "Launch any AI agent inside a sandbox.\n\nUsage: abox <agent>\n\nThat's it. The agent runs normally, session is recorded.")]
 struct Cli {
-    /// Agent to launch (claude, opencode, codex, gemini, etc.)
+    /// Agent to launch (claude, opencode, codex, etc.)
     agent: String,
 }
 

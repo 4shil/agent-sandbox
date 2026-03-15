@@ -24,9 +24,8 @@ esac
 TARGET="${ARCH}-${OS}"
 
 echo "🛡️  Installing abox..."
-echo "   OS: $OS"
-echo "   Arch: $ARCH"
-echo "   Target: $TARGET"
+echo "   Transparent sandbox for AI agents"
+echo "   Usage: abox <agent>"
 
 # Get latest release tag (with Accept header to avoid API issues)
 LATEST=$(curl -s -H "Accept: application/vnd.github.v3+json" \
@@ -70,7 +69,7 @@ rm -rf "$TMP_DIR"
 
 echo "✅ Installed to ${INSTALL_DIR}/${BINARY}"
 echo ""
-echo "Quick start:"
-echo "  $ abox init my-project"
-echo "  $ abox run --agent claude \"Build a todo API\""
-echo "  $ abox replay my-project"
+echo "Usage:"
+echo "  $ abox claude"
+echo "  $ abox opencode"
+echo "  $ abox codex"
