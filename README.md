@@ -1,146 +1,377 @@
-# 🛡️ Agent Sandbox
+# 🛡️ abox
 
 > Isolated, Auditable, Portable AI Agent Runtime
 
-**Docker for AI agent sessions** — but lighter, faster, and built for code-generation agents.
+**Docker for AI agents** — but lightweight, fast, and built for code generation.
 
 [![CI](https://github.com/4shil/agent-sandbox/actions/workflows/ci.yml/badge.svg)](https://github.com/4shil/agent-sandbox/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/4shil/agent-sandbox)](https://github.com/4shil/agent-sandbox/releases)
 
 ---
 
-## The Problem
+## Why abox?
 
-When you let an AI agent (Claude Code, Cursor, Copilot) work on your machine:
+You let Claude Code / Cursor / Codex build something on your machine. It:
 
-| Risk | What Happens |
-|------|--------------|
-| 🔓 **No sandbox** | Agent runs as YOU — can access SSH keys, env vars |
-| 🗑️ **Messy commits** | 47 garbage commits, no clear diff |
-| ❌ **No audit trail** | "Why did the agent delete this?" impossible to trace |
-| 🔁 **Not reproducible** | Can't replay what the agent did |
-| 📦 **No sharing** | Can't send your session to a friend |
-| ⏱️ **No limits** | Agent eats all your RAM |
+- 🔓 Runs as **you** — reads your SSH keys, env vars, everything
+- 🗑️ Commits **47 times** with garbage messages
+- ❌ Leaves **no audit trail** — "why did it delete this?"
+- 📦 Can't be **shared** with teammates
+- ⏱️ Eats **all your RAM** with no limits
 
-## The Solution
-
-Agent Sandbox wraps any AI agent in a safe, recordable, replayable environment:
+**abox fixes all of this.**
 
 ```
-$ agent-sandbox init my-project --template node
-✅ Sandbox 'my-project' created with Node template
-
-$ agent-sandbox run --agent claude "Build a todo API" --memory 2gb --timeout 30m
-🔌 Initializing sandbox filesystem...
-📝 Starting session recorder...
-🛡️  Resource limits: MEM: 2.0GB, TIME: 1800s
-✅ Task completed in 45.2s
-   Actions recorded: 127
-
-$ agent-sandbox diff my-project
-📁 src/index.ts
-  + import express from 'express';
-  + const app = express();
-
-$ agent-sandbox replay my-project
-╔══════════════════════════════════════════════════════════╗
-║  🔄 SESSION REPLAY                                       ║
-║  Agent: claude                                           ║
-║  Task: Build a todo API                                  ║
-║  Actions: 127                                            ║
-╚══════════════════════════════════════════════════════════╝
-[n]ext, [p]rev, [j]ump, [d]etails, [q]uit >
-
-$ agent-sandbox export my-project -o session.tar.gz
-📦 Exporting session...
-   Output: session.tar.gz (1.2MB)
-✅ Export complete
+$ abox init my-project --template node
+$ abox run --agent claude "Build a REST API" --memory 2gb
+$ abox replay my-project     ← see everything it did
+$ abox export my-project -o share.tar.gz  ← share with team
 ```
 
-## Features
+---
 
-| Feature | Description |
-|---------|-------------|
-| 📁 **FUSE Sandbox** | Agent sees isolated filesystem, real changes recorded |
-| 🔄 **Session Replay** | Record every action, replay step-by-step |
-| 📦 **Portable Sessions** | Export as tar.gz, share anywhere |
-| 🛡️ **Resource Limits** | CPU, memory, timeout, disk constraints |
-| 🌐 **Network Control** | Block or whitelist specific domains |
-| 📊 **Clean Diffs** | One clean diff, not 47 garbage commits |
-| 🌐 **HTML Viewer** | Browser-based replay, works offline |
+## Install
 
-## Quick Start
-
-### Install
+### One-liner
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/4shil/agent-sandbox/main/install.sh | bash
 ```
 
-### Usage
+### Manual
 
 ```bash
-# Create a sandbox
-agent-sandbox init my-project --template node
-
-# Run an agent task
-agent-sandbox run --agent claude "Build a REST API"
-
-# Review changes
-agent-sandbox diff my-project
-
-# Replay the session
-agent-sandbox replay my-project
-
-# Share with others
-agent-sandbox export my-project -o session.tar.gz
+# Download from releases
+wget https://github.com/4shil/agent-sandbox/releases/latest/download/abox-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf abox-*.tar.gz
+sudo mv abox /usr/local/bin/
 ```
 
-## Templates
+---
 
+## Quick Start
+
+### 1. Create a sandbox
+
+```bash
+$ abox init my-app --template rust
+
+🛡️  Creating sandbox my-app
+✅ Sandbox 'my-app' ready
+
+  cd ~/.agent-sandbox/workspaces/my-app
+  abox run "your task"
+```
+
+### 2. Run an agent
+
+```bash
+$ abox run --agent claude "Add user authentication" --memory 2gb --timeout 30m
+
+🔌 Initializing sandbox filesystem...
+📝 Starting session recorder...
+🛡️  Resource limits: MEM: 2.0GB, TIME: 1800s
+🌐 Network: OPEN
+🤖 Launching claude with task: Add user authentication
+   Session ID: abc123...
+
+✅ Task completed in 45.2s
+   Actions recorded: 127
+```
+
+### 3. Replay what happened
+
+```bash
+$ abox replay my-app
+
+╔══════════════════════════════════════════════════════════╗
+║  🔄 SESSION REPLAY                                       ║
+║  Agent: claude                                           ║
+║  Task: Add user authentication                           ║
+║  Actions: 127                                            ║
+╚══════════════════════════════════════════════════════════╝
+
+┌─ [1/127] ─────────────────────────────────────────
+│ Type:      task_start
+│ Task: Add user authentication
+└────────────────────────────────────────────────────
+Actions: [n]ext, [p]rev, [j]ump, [d]etails, [q]uit >
+```
+
+### 4. Share with anyone
+
+```bash
+$ abox export my-app -o session.tar.gz
+📦 Exporting session...
+   Output: session.tar.gz (1.2MB)
+✅ Export complete
+
+# The tar.gz includes:
+# - session.json    (full action log)
+# - metadata.json   (agent, host, duration)
+# - replay.html     (browser-based replay viewer)
+# - files/          (all modified files)
+```
+
+---
+
+## Commands
+
+### `abox init`
+
+Create a new sandbox workspace.
+
+```bash
+abox init <name> --template <node|python|rust|empty>
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--template` | Project template | `empty` |
+
+**Templates:**
 - `empty` — blank workspace
 - `node` — package.json + index.js
 - `python` — pyproject.toml + main.py
 - `rust` — Cargo.toml + src/main.rs
 
-## Resource Limits
+---
+
+### `abox status`
+
+List all active sandboxes.
 
 ```bash
-agent-sandbox run --agent claude "task" \
-  --memory 2gb \
-  --cpu 10m \
-  --timeout 30m
+abox status
 ```
 
-## Network Control
+Output:
+```
+📦 Active Sandboxes
+
+  NAME                 AGENT        CREATED
+  ──────────────────────────────────────────────────
+  my-app               claude       2026-03-15 08:37:31
+  api-project          codex        2026-03-15 07:12:00
+```
+
+---
+
+### `abox run`
+
+Run an agent task in a sandbox.
 
 ```bash
-# Block all network
-agent-sandbox run --agent claude "task" --no-network
-
-# Block all except specific domains
-agent-sandbox run --agent claude "task" \
-  --no-network \
-  --allow-domain api.openai.com \
-  --allow-domain github.com
+abox run --agent <agent> <task> [options]
 ```
 
-## Use Cases
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-a, --agent` | Agent to use | `claude` |
+| `-s, --sandbox` | Sandbox name | first active |
+| `--memory` | Max memory (e.g., `2gb`, `512mb`) | `2gb` |
+| `--cpu` | Max CPU time (e.g., `10m`, `1h`) | `10m` |
+| `--timeout` | Max wall time (e.g., `30m`) | `30m` |
+| `--no-network` | Block all network access | false |
+| `--allow-domain` | Whitelist domain (repeatable) | — |
 
-- 🎓 **Education** — Replay agent sessions to learn coding patterns
-- 🔍 **Code Review** — Review exactly what the agent did
-- 🐛 **Debugging** — Find where the agent broke things
-- 📝 **Docs** — Auto-generate "how this was built" from replay
-- 🔒 **Security** — Full audit trail of agent actions
+**Examples:**
+```bash
+# Basic
+abox run --agent claude "Fix the bug in auth.js"
+
+# With limits
+abox run --agent codex "Refactor database layer" --memory 1gb --timeout 15m
+
+# Offline (no network)
+abox run --agent claude "Review code" --no-network
+
+# Allow specific domains only
+abox run --agent claude "Deploy" --no-network --allow-domain api.github.com
+```
+
+---
+
+### `abox diff`
+
+Show clean diff of all file changes from a session.
+
+```bash
+abox diff <session-id-or-name>
+```
+
+Output:
+```
+📊 Session Diff
+
+📁 src/auth.ts
+  + import bcrypt from 'bcrypt';
+  + export async function hashPassword(password: string) {
+  +   return bcrypt.hash(password, 10);
+  + }
+
+📁 src/routes.ts
+  + import { hashPassword } from './auth';
+  + app.post('/register', registerHandler);
+```
+
+---
+
+### `abox replay`
+
+Interactive step-through replay of a session.
+
+```bash
+abox replay <session-id-or-name>
+```
+
+**Keyboard controls:**
+| Key | Action |
+|-----|--------|
+| `n` / `→` | Next action |
+| `p` / `←` | Previous action |
+| `j` | Jump to action # |
+| `d` | Show full action data |
+| `q` | Quit |
+
+---
+
+### `abox export`
+
+Export a session as a portable tar.gz archive.
+
+```bash
+abox export <session-id-or-name> -o <output-file>
+```
+
+**Archive contents:**
+```
+session.tar.gz
+├── session.json       # Full action log (JSON)
+├── metadata.json      # Agent, host, duration
+├── replay.html        # Browser-based replay viewer
+└── files/             # All modified files
+```
+
+---
+
+### `abox import`
+
+Import a shared session archive.
+
+```bash
+abox import <file.tar.gz>
+```
+
+Extracts to `~/.agent-sandbox/imports/` and displays session info.
+
+---
+
+### `abox inspect`
+
+View detailed session statistics and action breakdown.
+
+```bash
+abox inspect <session-id-or-name>
+```
+
+Output:
+```
+🔍 Session Inspector
+
+  ID: abc123...
+  Agent: claude
+  Task: Build REST API
+  Sandbox: my-app
+  Duration: 45200ms
+  Actions: 127
+  OS: linux
+  Arch: x86_64
+
+  Action Breakdown:
+    task_start           1 ████████████████████
+    file_write          34 ████████████████████
+    exec                45 ████████████████████
+    llm_call            47 ████████████████████
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                      abox                           │
+├─────────────┬─────────────┬─────────────────────────┤
+│   Sandbox   │  Recorder   │         Limits          │
+│   (FUSE)    │  (SQLite)   │     (cgroups)           │
+├─────────────┼─────────────┼─────────────────────────┤
+│  overlay FS │ file ops    │  memory: 2gb            │
+│  upper dir  │ exec logs   │  cpu: 10m               │
+│  merged     │ LLM calls   │  timeout: 30m           │
+│             │ network     │  network: blocked       │
+└─────────────┴─────────────┴─────────────────────────┘
+```
+
+---
+
+## File Locations
+
+| Path | Description |
+|------|-------------|
+| `~/.agent-sandbox/sandboxes.db` | SQLite database |
+| `~/.agent-sandbox/workspaces/<name>/` | Workspace files |
+| `~/.agent-sandbox/workspaces/<name>/logs/` | Session recordings |
+| `~/.agent-sandbox/imports/` | Imported sessions |
+
+---
 
 ## Tech Stack
 
-- **Rust** — Fast CLI, single binary
-- **FUSE** — Filesystem sandboxing
-- **SQLite** — Session recording
-- **Linux namespaces** — Process isolation
-- **htmx** — Browser replay viewer
+| Layer | Tech | Why |
+|-------|------|-----|
+| CLI | **Rust** (clap) | Fast, single binary |
+| FS Sandbox | **FUSE overlay** | Isolated filesystem |
+| Recording | **SQLite** | Lightweight, queryable |
+| Process Isolation | **Linux namespaces** | No Docker needed |
+| Network Control | **iptables** | Fine-grained control |
+| Replay Viewer | **HTML + htmx** | Zero-dependency |
+| UI | **colored** crate | Colored terminal output |
+
+---
+
+## Use Cases
+
+| Use Case | Command |
+|----------|---------|
+| 🎓 Education | `abox replay lesson-1` — watch how code was built |
+| 🔍 Code Review | `abox diff pr-123` — see exactly what changed |
+| 🐛 Debugging | `abox inspect broken-session` — find where it went wrong |
+| 📝 Documentation | Export session → replay.html is auto-generated docs |
+| 🔒 Security Audit | `abox inspect` — full audit trail of agent actions |
+| 🤝 Collaboration | `abox export` → share → teammate imports and replays |
+
+---
+
+## Supported Agents
+
+abox works with any CLI agent:
+
+- ✅ **Claude Code** (`claude`)
+- ✅ **Codex** (`codex`)
+- ✅ **Cursor** (via CLI)
+- ✅ **Copilot** (via CLI)
+- ✅ **Any custom agent** (just pass the command name)
+
+---
 
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+## Contributing
+
+PRs welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

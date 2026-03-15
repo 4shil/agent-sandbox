@@ -1,8 +1,8 @@
 [package]
-name = "agent-sandbox"
-version = "0.1.0"
+name = "abox"
+version = "0.2.0"
 edition = "2021"
-description = "Isolated, Auditable, Portable AI Agent Runtime"
+description = "🛡️ Isolated, Auditable, Portable AI Agent Runtime"
 license = "MIT"
 
 [dependencies]
@@ -16,3 +16,4 @@ anyhow = "1"
 tar = "0.4"
 flate2 = "1"
 walkdir = "2"
+colored = "2"

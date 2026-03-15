@@ -37,9 +37,9 @@ jobs:
         run: |
           cargo build --release
           cd target/release
-          tar czf agent-sandbox-x86_64-unknown-linux-gnu.tar.gz agent-sandbox
+          tar czf abox-x86_64-unknown-linux-gnu.tar.gz abox
       
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          files: target/release/agent-sandbox-x86_64-unknown-linux-gnu.tar.gz
+          files: target/release/abox-x86_64-unknown-linux-gnu.tar.gz

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-REPO="4shil/agent-sandbox"
-BINARY="agent-sandbox"
+REPO="4shil/abox"
+BINARY="abox"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Detect OS and arch
@@ -23,7 +23,7 @@ esac
 
 TARGET="${ARCH}-${OS}"
 
-echo "🛡️  Installing agent-sandbox..."
+echo "🛡️  Installing abox..."
 echo "   OS: $OS"
 echo "   Arch: $ARCH"
 echo "   Target: $TARGET"
@@ -63,6 +63,6 @@ rm -rf "$TMP_DIR"
 echo "✅ Installed to ${INSTALL_DIR}/${BINARY}"
 echo ""
 echo "Quick start:"
-echo "  $ agent-sandbox init my-project"
-echo "  $ agent-sandbox run --agent claude \"Build a todo API\""
-echo "  $ agent-sandbox replay my-project"
+echo "  $ abox init my-project"
+echo "  $ abox run --agent claude \"Build a todo API\""
+echo "  $ abox replay my-project"
