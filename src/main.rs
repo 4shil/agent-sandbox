@@ -1,4 +1,3 @@
-mod cli;
 mod db;
 mod sandbox;
 mod recorder;
