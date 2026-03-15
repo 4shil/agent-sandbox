@@ -2,9 +2,10 @@ mod db;
 mod sandbox;
 mod recorder;
 mod session;
+mod ui;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
@@ -17,6 +18,7 @@ use crate::recorder::Recorder;
 #[command(name = "abox")]
 #[command(about = "🛡️  Transparent sandbox for AI coding agents")]
 #[command(long_about = "Launch any AI agent inside an isolated sandbox.\n\n  abox claude          launch Claude\n  abox opencode        launch OpenCode\n  abox list            show recorded sessions\n  abox replay <id>     replay a session")]
+#[command(after_help = "SESSIONS\n  abox list              list all sessions\n  abox inspect <id>      show session details\n  abox replay <id>       step-through replay\n  abox export <id> -o f  export as tar.gz\n  abox import <file>     import shared session\n  abox clean --days 7    remove old sessions")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -65,7 +67,36 @@ enum Commands {
         #[arg(short, long, default_value = "30")]
         days: u64,
     },
+    /// First-run setup wizard
+    Init,
+    /// Show dashboard
+    Dashboard,
+    /// Show agent status
+    Status,
+    /// Install shell completions
+    Completions {
+        /// Shell type
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
+
+#[derive(Clone, ValueEnum)]
+enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+}
+
+// Known agents and how to detect/install them
+const KNOWN_AGENTS: &[(&str, &str, &str, &[&str])] = &[
+    ("claude", "Claude Code", "npm i -g @anthropic-ai/claude-code", &["claude"]),
+    ("codex", "OpenAI Codex CLI", "npm i -g @openai/codex", &["codex"]),
+    ("opencode", "OpenCode", "npm i -g opencode-ai", &["opencode"]),
+    ("gemini", "Google Gemini CLI", "npm i -g @google/gemini-cli", &["gemini"]),
+    ("aider", "Aider", "pip install aider", &["aider"]),
+    ("goose", "Block Goose", "pip install goose-ai", &["goose"]),
+];
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -73,22 +104,30 @@ fn main() -> Result<()> {
     match &cli.command {
         Some(cmd) => match cmd {
             Commands::Run { agent } => run_agent(agent)?,
-            Commands::List => list_sessions()?,
-            Commands::Inspect { id } => inspect_session(id)?,
-            Commands::Replay { id } => replay_session(id)?,
-            Commands::Export { id, output } => export_session(id, output)?,
-            Commands::Import { file } => import_session(file)?,
-            Commands::Clean { days } => clean_sessions(*days)?,
+            Commands::List => session::list_sessions()?,
+            Commands::Inspect { id } => session::inspect_session(id)?,
+            Commands::Replay { id } => session::replay_session(id)?,
+            Commands::Export { id, output } => session::export_session(id, output)?,
+            Commands::Import { file } => session::import_session(file)?,
+            Commands::Clean { days } => session::clean_sessions(*days)?,
+            Commands::Init => ui::run_wizard()?,
+            Commands::Dashboard => ui::show_dashboard()?,
+            Commands::Status => ui::show_status()?,
+            Commands::Completions { shell } => print_completions(shell)?,
         },
         None => {
             let agent = cli.agent.unwrap_or_default();
             if agent.is_empty() {
-                eprintln!("Usage: abox <agent>");
-                eprintln!("       abox run <agent>");
-                eprintln!("       abox list");
-                std::process::exit(1);
+                // No args — show friendly help
+                ui::show_quick_help();
+            } else {
+                // Check if agent exists, give helpful error
+                if let Err(e) = which::which(&agent) {
+                    ui::show_agent_not_found(&agent);
+                    std::process::exit(1);
+                }
+                run_agent(&agent)?;
             }
-            run_agent(&agent)?;
         }
     }
 
@@ -112,6 +151,11 @@ fn run_agent(agent: &str) -> Result<()> {
 
     let logs_dir = workspace.join("logs");
     let mut recorder = Recorder::new(&sandbox_name, agent, "interactive", &logs_dir)?;
+
+    // Show first-run tip if no sessions exist
+    if !session::has_sessions() {
+        ui::show_first_run_tip(agent, &sandbox_name);
+    }
 
     let mut cmd = Command::new(agent);
     cmd.current_dir(sfs.agent_root());
@@ -137,6 +181,9 @@ fn run_agent(agent: &str) -> Result<()> {
 
     let _ = recorder.finish();
 
+    // Show session summary
+    ui::show_session_complete(&sandbox_name, duration, recorder.session_id());
+
     if let Ok(Some(code)) = status.map(|s| s.code()) {
         std::process::exit(code);
     }
@@ -144,263 +191,36 @@ fn run_agent(agent: &str) -> Result<()> {
     Ok(())
 }
 
-fn get_workspaces_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".agent-sandbox").join("workspaces")
-}
+fn print_completions(shell: &Shell) -> Result<()> {
+    let bin = "abox";
+    match shell {
+        Shell::Bash => println!(
+            r#"_abox() {{
+    local cur="${{COMP_WORDS[COMP_CWORD]}}"
+    local cmds="list inspect replay export import clean init dashboard status completions run"
+    local agents="claude codex opencode gemini aider goose"
+    if [[ $COMP_CWORD -eq 1 ]]; then
+        COMPREPLY=($(compgen -W "$cmds $agents" -- "$cur"))
+    fi
+}}
+complete -F _abox abox"#
+        ),
+        Shell::Zsh => println!(
+            r#"#compdef abox
 
-fn list_sessions() -> Result<()> {
-    let dir = get_workspaces_dir();
+_abox() {{
+    _arguments \
+        '1:command:((list inspect replay export import clean init dashboard status completions run))' \
+        '2:agent:({})'
+}}
 
-    if !dir.exists() {
-        println!("\n  No sessions yet.\n");
-        return Ok(());
+compdef _abox abox"#,
+            KNOWN_AGENTS.iter().map(|(n, _, _, _)| *n).collect::<Vec<_>>().join(" ")
+        ),
+        Shell::Fish => println!(
+            r#"complete -c abox -a "list inspect replay export import clean init dashboard status run" -d "Command"
+complete -c abox -a "claude codex opencode gemini aider goose" -d "Agent""#
+        ),
     }
-
-    let mut entries: Vec<_> = std::fs::read_dir(&dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|f| f.is_dir()).unwrap_or(false))
-        .collect();
-    
-    entries.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
-
-    println!();
-    println!("  {:<40} {:>10}", "SESSION".bold(), "FILES".bold());
-    println!("  {}", "─".repeat(52).dimmed());
-
-    for entry in &entries {
-        let name = entry.file_name().to_string_lossy().to_string();
-        let logs_dir = entry.path().join("logs");
-        let session_count = std::fs::read_dir(&logs_dir)
-            .map(|d| d.filter_map(|e| e.ok()).count())
-            .unwrap_or(0);
-        
-        println!("  {:<40} {:>10}", name.cyan(), session_count);
-    }
-    println!();
     Ok(())
-}
-
-fn inspect_session(id: &str) -> Result<()> {
-    let path = find_session(id)?;
-    let content = std::fs::read_to_string(&path)?;
-    let session: recorder::SessionRecord = serde_json::from_str(&content)?;
-
-    println!();
-    println!("  {:<15} {}", "ID".bold(), session.id.cyan());
-    println!("  {:<15} {}", "Agent".bold(), session.agent.green());
-    if let Some(dur) = session.duration_ms {
-        println!("  {:<15} {}", "Duration".bold(), format!("{:.1}s", dur as f64 / 1000.0).yellow());
-    }
-    println!("  {:<15} {}", "Actions".bold(), session.actions.len());
-
-    // Action breakdown
-    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for action in &session.actions {
-        *counts.entry(action.action_type.clone()).or_default() += 1;
-    }
-
-    if !counts.is_empty() {
-        println!();
-        println!("  {}", "Actions".bold());
-        for (t, c) in &counts {
-            println!("    {:<20} {}", t.cyan(), c);
-        }
-    }
-
-    println!();
-    Ok(())
-}
-
-fn replay_session(id: &str) -> Result<()> {
-    use std::io::{self, Write};
-    
-    let path = find_session(id)?;
-    let content = std::fs::read_to_string(&path)?;
-    let session: recorder::SessionRecord = serde_json::from_str(&content)?;
-
-    println!();
-    println!("🔄 {}", "Session Replay".bold());
-    println!("   Agent: {} | Actions: {}", session.agent.green(), session.actions.len());
-    println!();
-
-    if session.actions.is_empty() {
-        println!("  (no actions)");
-        return Ok(());
-    }
-
-    let mut current = 0;
-    let total = session.actions.len();
-
-    loop {
-        let action = &session.actions[current];
-        
-        println!("┌─ [{}/{}] ──────────────────────────────", current + 1, total);
-        println!("│ Type: {}", action.action_type.cyan());
-        println!("├─────────────────────────────────────────");
-        
-        // Pretty print data
-        if let Some(obj) = action.data.as_object() {
-            for (k, v) in obj {
-                let val = if v.is_string() {
-                    v.as_str().unwrap_or("").to_string()
-                } else {
-                    v.to_string()
-                };
-                if val.len() > 100 {
-                    println!("│ {}: {}...", k.dimmed(), &val[..100]);
-                } else {
-                    println!("│ {}: {}", k.dimmed(), val);
-                }
-            }
-        }
-        
-        println!("└─────────────────────────────────────────\n");
-
-        print!("[n]ext [p]rev [d]etails [q]uit > ");
-        io::stdout().flush()?;
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        match input.trim().to_lowercase().as_str() {
-            "n" | "" => { if current + 1 < total { current += 1; } }
-            "p" => { if current > 0 { current -= 1; } }
-            "d" => println!("{}\n", serde_json::to_string_pretty(&action.data)?),
-            "q" => break,
-            _ => {}
-        }
-    }
-
-    Ok(())
-}
-
-fn export_session(id: &str, output: &str) -> Result<()> {
-    use std::io::Write;
-    
-    let path = find_session(id)?;
-    let session_dir = path.parent().unwrap().parent().unwrap();
-    let session_name = session_dir.file_name().unwrap().to_string_lossy();
-
-    println!();
-    println!("📦 Exporting session...");
-
-    // Find session.json
-    let logs_dir = session_dir.join("logs");
-    let session_file = find_session(id)?;
-
-    // Create tar.gz using tar command (simpler than Rust tar crate)
-    let status = Command::new("tar")
-        .arg("-czf")
-        .arg(output)
-        .arg("-C")
-        .arg(&session_dir)
-        .arg(".")
-        .status()?;
-
-    if status.success() {
-        let size = std::fs::metadata(output)?.len();
-        println!("   {} → {} ({})", session_name.cyan(), output.green(), format_bytes(size));
-        println!();
-    } else {
-        anyhow::bail!("Failed to create archive");
-    }
-
-    Ok(())
-}
-
-fn import_session(file: &str) -> Result<()> {
-    let home = std::env::var("HOME")?;
-    let import_dir = PathBuf::from(&home).join(".agent-sandbox").join("imports");
-    std::fs::create_dir_all(&import_dir)?;
-
-    println!();
-    println!("📥 Importing session...");
-
-    Command::new("tar")
-        .arg("-xzf")
-        .arg(file)
-        .arg("-C")
-        .arg(&import_dir)
-        .status()?;
-
-    // Find session.json
-    let session_json = import_dir.join("session.json");
-    if session_json.exists() {
-        let content = std::fs::read_to_string(&session_json)?;
-        let session: recorder::SessionRecord = serde_json::from_str(&content)?;
-        println!("   Agent: {}", session.agent.cyan());
-        println!("   Actions: {}", session.actions.len().to_string().green());
-    }
-
-    println!("   Imported to: {}", import_dir.display());
-    println!();
-    Ok(())
-}
-
-fn clean_sessions(days: u64) -> Result<()> {
-    let dir = get_workspaces_dir();
-    if !dir.exists() { return Ok(()); }
-
-    let cutoff = std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86400);
-    let mut removed = 0;
-
-    for entry in std::fs::read_dir(&dir)? {
-        let entry = entry?;
-        if let Ok(metadata) = entry.metadata() {
-            if let Ok(modified) = metadata.modified() {
-                if modified < cutoff {
-                    std::fs::remove_dir_all(entry.path())?;
-                    removed += 1;
-                }
-            }
-        }
-    }
-
-    println!("🗑️  Removed {} old sessions (older than {} days)", removed, days);
-    Ok(())
-}
-
-fn find_session(id: &str) -> Result<PathBuf> {
-    let dir = get_workspaces_dir();
-    
-    // Direct path
-    if std::path::Path::new(id).exists() {
-        return Ok(PathBuf::from(id));
-    }
-
-    // Search all workspaces
-    for entry in std::fs::read_dir(&dir)? {
-        let entry = entry?;
-        let logs = entry.path().join("logs");
-        
-        // Exact session ID match
-        let exact = logs.join(format!("{}.json", id));
-        if exact.exists() { return Ok(exact); }
-        
-        // Workspace name match → latest session
-        if entry.file_name().to_string_lossy() == id {
-            if let Ok(entries) = std::fs::read_dir(&logs) {
-                let mut jsons: Vec<_> = entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
-                    .collect();
-                if !jsons.is_empty() {
-                    jsons.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
-                    return Ok(jsons[0].path());
-                }
-            }
-        }
-    }
-
-    anyhow::bail!("Session not found: {}", id)
-}
-
-fn format_bytes(bytes: u64) -> String {
-    if bytes >= 1024 * 1024 {
-        format!("{:.1}MB", bytes as f64 / (1024.0 * 1024.0))
-    } else if bytes >= 1024 {
-        format!("{:.1}KB", bytes as f64 / 1024.0)
-    } else {
-        format!("{}B", bytes)
-    }
 }
