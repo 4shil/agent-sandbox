@@ -148,6 +148,7 @@ pub fn run_agent(agent: &str, task: &str, sandbox_name: &str, limits: &ResourceL
         cmd.arg(arg);
     }
     cmd.current_dir(sfs.agent_root());
+    cmd.envs(std::env::vars());  // Pass through all env vars (API keys, etc.)
 
     let output = cmd.output();
 
