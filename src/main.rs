@@ -10,7 +10,7 @@ mod export;
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
-use colored::*;
+use colored::Colorize;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -95,6 +95,31 @@ fn main() -> Result<()> {
             println!();
             inspect_session(&session)?;
         }
+        Commands::Agents { install } => {
+            if install {
+                println!();
+                println!("{}", "📦 Installing Agent Wrappers".bold());
+                println!();
+                install_agent_wrappers()?;
+            } else {
+                println!();
+                println!("{}", "🤖 Supported Agents".bold());
+                println!();
+                let agents = cli::run::AgentConfig::all_supported();
+                println!("  {:<15} {}", "AGENT".bold(), "DESCRIPTION".bold());
+                println!("  {}", "─".repeat(50).dimmed());
+                for (name, desc) in &agents {
+                    println!("  {:<15} {} {}", 
+                        name.cyan(), 
+                        desc.dimmed(),
+                        format!("(use with --agent {})", name).dimmed()
+                    );
+                }
+                println!();
+                println!("  {}", "Any custom agent works too — just pass the binary name.".dimmed());
+                println!();
+            }
+        }
     }
 
     Ok(())
@@ -155,8 +180,8 @@ fn inspect_session(session_path: &str) -> Result<()> {
         println!("  {} {}", "Duration:".bold(), format!("{}ms", dur).yellow());
     }
     println!("  {} {}", "Actions:".bold(), session.actions.len().to_string().green());
-    println!("  {} {}", "OS:".bold(), session.metadata.host_info.os.dimmed());
-    println!("  {} {}", "Arch:".bold(), session.metadata.host_info.arch.dimmed());
+    println!("  {} {}", "OS:".bold(), session.metadata.host_info.os.to_string().dimmed());
+    println!("  {} {}", "Arch:".bold(), session.metadata.host_info.arch.to_string().dimmed());
     println!();
 
     // Action type breakdown
@@ -176,5 +201,36 @@ fn inspect_session(session_path: &str) -> Result<()> {
         println!();
     }
 
+    Ok(())
+}
+
+fn install_agent_wrappers() -> Result<()> {
+    let scripts = vec![
+        ("claude", "#!/bin/bash\n# Wrapper for Claude Code\nexec claude \"$@\"\n"),
+        ("codex", "#!/bin/bash\n# Wrapper for OpenAI Codex\nexec codex \"$@\"\n"),
+        ("opencode", "#!/bin/bash\n# Wrapper for OpenCode\nexec opencode \"$@\"\n"),
+        ("gemini", "#!/bin/bash\n# Wrapper for Google Gemini CLI\nexec gemini \"$@\"\n"),
+        ("aider", "#!/bin/bash\n# Wrapper for Aider\nexec aider \"$@\"\n"),
+    ];
+    
+    let bin_dir = std::env::var("HOME")? + "/.agent-sandbox/bin";
+    std::fs::create_dir_all(&bin_dir)?;
+    
+    for (name, content) in scripts {
+        let path = format!("{}/{}", bin_dir, name);
+        std::fs::write(&path, content)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+        }
+        println!("  ✅ {}/{}", bin_dir.to_string().dimmed(), name.cyan());
+    }
+    
+    println!();
+    println!("  Add to your PATH:");
+    println!("  {}", format!("export PATH=\"{}:$PATH\"", bin_dir).green());
+    println!();
+    
     Ok(())
 }

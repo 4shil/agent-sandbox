@@ -42,7 +42,21 @@ pub enum Commands {
     Status,
 
     /// Run an agent task in a sandbox
-    #[command(after_help = "EXAMPLES\n  abox run --agent claude \"fix the bug\"\n  abox run --agent codex \"add tests\" --memory 1gb\n  abox run --agent claude \"deploy\" --no-network")]
+    #[command(after_help = "SUPPORTED AGENTS
+  claude     Anthropic Claude Code
+  codex      OpenAI Codex CLI
+  opencode   OpenCode AI agent
+  cursor     Cursor AI Editor
+  gemini     Google Gemini CLI
+  aider      Aider AI pair programmer
+  goose      Block Goose agent
+  sweep      Sweep AI
+
+EXAMPLES
+  abox run --agent claude \"fix the bug\"
+  abox run --agent opencode \"add tests\"
+  abox run --agent codex \"refactor\" --memory 1gb
+  abox run --agent claude \"deploy\" --no-network")]
     Run {
         /// Agent to use (claude, codex, etc.)
         #[arg(short, long, default_value = "claude")]
@@ -113,6 +127,14 @@ pub enum Commands {
     Inspect {
         /// Session ID or sandbox name
         session: String,
+    },
+
+    /// List supported agents or install agent wrappers
+    #[command(after_help = "EXAMPLES\n  abox agents              List all supported agents\n  abox agents install      Install agent wrapper scripts")]
+    Agents {
+        /// Install agent wrapper scripts
+        #[arg(long)]
+        install: bool,
     },
 }
 

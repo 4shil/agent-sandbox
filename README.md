@@ -358,13 +358,29 @@ Output:
 
 ## Supported Agents
 
-abox works with any CLI agent:
+abox works with **any** AI coding agent:
 
-- ✅ **Claude Code** (`claude`)
-- ✅ **Codex** (`codex`)
-- ✅ **Cursor** (via CLI)
-- ✅ **Copilot** (via CLI)
-- ✅ **Any custom agent** (just pass the command name)
+| Agent | Command | Description |
+|-------|---------|-------------|
+| ✅ Claude Code | `--agent claude` | Anthropic Claude Code |
+| ✅ Codex | `--agent codex` | OpenAI Codex CLI |
+| ✅ OpenCode | `--agent opencode` | OpenCode AI agent |
+| ✅ Cursor | `--agent cursor` | Cursor AI Editor |
+| ✅ Gemini | `--agent gemini` | Google Gemini CLI |
+| ✅ Aider | `--agent aider` | Aider AI pair programmer |
+| ✅ Goose | `--agent goose` | Block Goose agent |
+| ✅ Sweep | `--agent sweep` | Sweep AI |
+| ✅ Any binary | `--agent myagent` | Custom agent support |
+
+```bash
+# List all supported agents
+abox agents
+
+# Use any supported agent
+abox run --agent opencode "Build a REST API"
+abox run --agent claude "Fix the bug" --memory 2gb
+abox run --agent aider "Add tests" --timeout 15m
+```
 
 ---
 
