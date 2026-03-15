@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO="4shil/abox"
+REPO="4shil/agent-sandbox"
 BINARY="abox"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
@@ -28,12 +28,20 @@ echo "   OS: $OS"
 echo "   Arch: $ARCH"
 echo "   Target: $TARGET"
 
-# Get latest release tag
-LATEST=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+# Get latest release tag (with Accept header to avoid API issues)
+LATEST=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/${REPO}/releases/latest" | \
+    grep '"tag_name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+
+# Fallback: try fetching from GitHub tags if releases fails
+if [ -z "$LATEST" ]; then
+    LATEST=$(curl -s "https://api.github.com/repos/${REPO}/tags" | \
+        grep '"name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+fi
 
 if [ -z "$LATEST" ]; then
-    echo "❌ Could not determine latest release"
-    exit 1
+    echo "⚠️  Could not determine latest release, using v0.3.0"
+    LATEST="v0.3.0"
 fi
 
 echo "   Version: $LATEST"
