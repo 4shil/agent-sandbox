@@ -3,6 +3,8 @@ mod sandbox;
 mod recorder;
 mod session;
 mod ui;
+mod tui;
+mod screens;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -77,7 +79,12 @@ fn main() -> Result<()> {
             Commands::Import { file } => session::import_session(file)?,
             Commands::Clean { days } => session::clean_sessions(*days)?,
             Commands::Init => ui::run_wizard()?,
-            Commands::Dashboard => ui::show_dashboard()?,
+            Commands::Dashboard => {
+                let mut terminal = tui::init()?;
+                let mut app = tui::app::App::new();
+                app.run(&mut terminal)?;
+                tui::restore(terminal)?;
+            }
             Commands::Status => ui::show_status()?,
             Commands::Completions { shell } => print_completions(shell)?,
             Commands::Tag { id, tag } => session::tag_session(id, tag)?,
