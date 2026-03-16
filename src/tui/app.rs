@@ -4,7 +4,7 @@ use ratatui::{layout::Rect, Frame};
 
 use crate::tui::{Theme, AppEvent, EventLoop, Toast};
 use crate::tui::widgets::ToastManager;
-use crate::screens::Screen;
+use crate::screens::{Screen, SessionsState};
 
 pub struct App {
     pub running: bool,
@@ -46,6 +46,7 @@ impl App {
                 let action = match key.code {
                     KeyCode::Char('q') if matches!(self.current_screen, Screen::Home) => Some(AppAction::Quit),
                     KeyCode::Char('q') if !matches!(self.current_screen, Screen::Home) => Some(AppAction::GoHome),
+                    KeyCode::Char('s') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoSessions),
                     KeyCode::Esc => Some(AppAction::GoHome),
                     _ => None,
                 };
@@ -54,6 +55,7 @@ impl App {
                     match action {
                         AppAction::Quit => self.running = false,
                         AppAction::GoHome => self.current_screen = Screen::Home,
+                        AppAction::GoSessions => self.current_screen = Screen::Sessions(SessionsState::default()),
                     }
                 } else {
                     self.current_screen.handle_key(key, &mut self.toasts);
@@ -84,4 +86,5 @@ impl App {
 enum AppAction {
     Quit,
     GoHome,
+    GoSessions,
 }
