@@ -87,7 +87,7 @@ impl HomeScreen {
         let status_text = format!("Sessions: {} │ Agents: {}", session_count, agent_count);
         let status = StatusBar::new(
             &status_text,
-            "v0.9.1 │ Space: 2.1GB",
+            "v0.9.2 │ Space: 2.1GB",
         );
         status.render(frame, chunks[1], theme);
     }
