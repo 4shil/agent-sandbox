@@ -166,3 +166,16 @@ fn load_sessions() -> Vec<SessionItem> {
     sessions.sort_by(|a, b| b.name.cmp(&a.name));
     sessions
 }
+
+pub fn filtered_sessions(state: &SessionsState) -> Vec<SessionItem> {
+    let sessions = load_sessions();
+    if state.query.is_empty() {
+        sessions
+    } else {
+        let q = state.query.to_lowercase();
+        sessions
+            .into_iter()
+            .filter(|s| s.name.to_lowercase().contains(&q) || s.agent.to_lowercase().contains(&q))
+            .collect()
+    }
+}

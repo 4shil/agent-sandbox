@@ -5,7 +5,7 @@ mod timeline;
 mod stats;
 
 pub use home::HomeScreen;
-pub use sessions::{SessionsScreen, SessionsState};
+pub use sessions::{SessionsScreen, SessionsState, filtered_sessions};
 pub use detail::DetailScreen;
 pub use timeline::TimelineScreen;
 pub use stats::StatsScreen;

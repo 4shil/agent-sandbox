@@ -4,7 +4,7 @@ use ratatui::{layout::Rect, Frame};
 
 use crate::tui::{Theme, AppEvent, EventLoop, Toast};
 use crate::tui::widgets::ToastManager;
-use crate::screens::{Screen, SessionsState};
+use crate::screens::{Screen, SessionsState, filtered_sessions};
 
 pub struct App {
     pub running: bool,
@@ -47,6 +47,9 @@ impl App {
                     KeyCode::Char('q') if matches!(self.current_screen, Screen::Home) => Some(AppAction::Quit),
                     KeyCode::Char('q') if !matches!(self.current_screen, Screen::Home) => Some(AppAction::GoHome),
                     KeyCode::Char('s') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoSessions),
+                    KeyCode::Char('d') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoStats),
+                    KeyCode::Char('t') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoTimeline),
+                    KeyCode::Enter if matches!(self.current_screen, Screen::Sessions(_)) => Some(AppAction::OpenDetail),
                     KeyCode::Esc => Some(AppAction::GoHome),
                     _ => None,
                 };
@@ -58,6 +61,14 @@ impl App {
                         AppAction::GoSessions => self.current_screen = Screen::Sessions(SessionsState::default()),
                         AppAction::GoStats => self.current_screen = Screen::Stats,
                         AppAction::GoTimeline => self.current_screen = Screen::Timeline,
+                        AppAction::OpenDetail => {
+                            if let Screen::Sessions(state) = &self.current_screen {
+                                let sessions = filtered_sessions(state);
+                                if let Some(item) = sessions.get(state.selected) {
+                                    self.current_screen = Screen::Detail(item.name.clone());
+                                }
+                            }
+                        }
                     }
                 } else {
                     self.current_screen.handle_key(key, &mut self.toasts);
@@ -91,4 +102,5 @@ enum AppAction {
     GoSessions,
     GoStats,
     GoTimeline,
+    OpenDetail,
 }
