@@ -1,10 +1,14 @@
 mod home;
 mod sessions;
 mod detail;
+mod timeline;
+mod stats;
 
 pub use home::HomeScreen;
 pub use sessions::{SessionsScreen, SessionsState};
 pub use detail::DetailScreen;
+pub use timeline::TimelineScreen;
+pub use stats::StatsScreen;
 
 use anyhow::Result;
 use ratatui::{layout::Rect, Frame};

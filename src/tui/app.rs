@@ -89,12 +89,6 @@ enum AppAction {
     Quit,
     GoHome,
     GoSessions,
-}
-
-}
-
-enum AppAction {
-    Quit,
-    GoHome,
-    GoSessions,
+    GoStats,
+    GoTimeline,
 }
