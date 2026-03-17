@@ -11,6 +11,7 @@ const KNOWN_AGENTS: &[(&str, &str, &str)] = &[
     ("gemini", "Google Gemini CLI", "npm i -g @google/gemini-cli"),
     ("aider", "Aider", "pip install aider"),
     ("goose", "Block Goose", "pip install goose-ai"),
+    ("openclaw", "OpenClaw", "npm i -g openclaw"),
 ];
 
 const LOGO: &str = r#"

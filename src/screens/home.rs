@@ -19,13 +19,14 @@ const LOGO: &str = r#"
     |||||     sandbox for ai agents
     |||||"#;
 
-const AGENTS: &[(&str, &str, bool)] = &[
-    ("claude", "Claude Code", false),
-    ("codex", "OpenAI Codex", false),
-    ("opencode", "OpenCode", true),
-    ("gemini", "Gemini CLI", true),
-    ("aider", "Aider", false),
-    ("goose", "Goose", false),
+const AGENTS: &[(&str, &str)] = &[
+    ("claude", "Claude Code"),
+    ("codex", "OpenAI Codex"),
+    ("opencode", "OpenCode"),
+    ("gemini", "Gemini CLI"),
+    ("aider", "Aider"),
+    ("goose", "Goose"),
+    ("openclaw", "OpenClaw"),
 ];
 
 pub struct HomeScreen;
@@ -110,7 +111,7 @@ impl HomeScreen {
         } else {
             state.cached_count.unwrap_or(0)
         };
-        let agent_count = AGENTS.iter().filter(|(_, _, i)| *i).count();
+        let agent_count = AGENTS.iter().filter(|(name, _)| which::which(name).is_ok()).count();
         let status_text = format!("Sessions: {} │ Agents: {}", session_count, agent_count);
         let status = StatusBar::new(
             &status_text,
@@ -120,7 +121,7 @@ impl HomeScreen {
     }
 
     pub fn handle_key(key: KeyEvent, _toasts: &mut ToastManager, state: &mut HomeState) {
-        let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
+        let installed: Vec<_> = AGENTS.iter().filter(|(name, _)| which::which(name).is_ok()).collect();
         let installed_count = installed.len();
         if installed_count == 0 {
             return;
@@ -143,8 +144,8 @@ impl HomeScreen {
 }
 
 fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeState) {
-    let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
-    let items: Vec<ListItem> = installed.iter().map(|(name, desc, _)| {
+    let installed: Vec<_> = AGENTS.iter().filter(|(name, _)| which::which(name).is_ok()).collect();
+    let items: Vec<ListItem> = installed.iter().map(|(name, desc)| {
         ListItem::new(Line::from(format!("  [✓] {:<14} {}", name, desc)))
             .style(Style::default().fg(theme.success))
     }).collect();
@@ -176,8 +177,8 @@ fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeS
 }
 
 pub fn selected_agent(state: &HomeState) -> Option<&'static str> {
-    let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
-    installed.get(state.selected).map(|(name, _, _)| *name)
+    let installed: Vec<_> = AGENTS.iter().filter(|(name, _)| which::which(name).is_ok()).collect();
+    installed.get(state.selected).map(|(name, _)| *name)
 }
 
 fn render_recent_sessions(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeState) {
