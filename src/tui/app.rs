@@ -1,9 +1,11 @@
 use anyhow::Result;
 use ratatui::{layout::Rect, Frame};
+use std::process::Command;
+use crossterm::{execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, event::{DisableMouseCapture, EnableMouseCapture}};
 
 use crate::tui::{Theme, AppEvent, EventLoop};
 use crate::tui::widgets::ToastManager;
-use crate::screens::{Screen, SessionsState, DetailState, filtered_sessions};
+use crate::screens::{Screen, SessionsState, DetailState, HomeState, selected_agent, filtered_sessions};
 
 pub struct App {
     pub running: bool,
@@ -20,7 +22,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             running: true,
-            current_screen: Screen::Home,
+            current_screen: Screen::Home(HomeState::default()),
             theme: Theme::dark(),
             toasts: ToastManager::new(),
             screen_size: Rect::default(),
@@ -60,7 +62,7 @@ impl App {
                 if self.goto_prefix {
                     self.goto_prefix = false;
                     match key.code {
-                        KeyCode::Char('h') => self.current_screen = Screen::Home,
+                        KeyCode::Char('h') => self.current_screen = Screen::Home(HomeState::default()),
                         KeyCode::Char('s') => self.current_screen = Screen::Sessions(self.last_sessions.clone()),
                         KeyCode::Char('t') => self.current_screen = Screen::Timeline,
                         KeyCode::Char('d') => self.current_screen = Screen::Stats,
@@ -73,12 +75,14 @@ impl App {
                     KeyCode::Char('?') => Some(AppAction::ToggleHelp),
                     KeyCode::Char('g') => Some(AppAction::StartGoto),
                     KeyCode::Char('/') => Some(AppAction::FocusSearch),
-                    KeyCode::Char('q') if matches!(self.current_screen, Screen::Home) => Some(AppAction::Quit),
-                    KeyCode::Char('q') if !matches!(self.current_screen, Screen::Home) => Some(AppAction::GoHome),
-                    KeyCode::Char('s') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoSessions),
-                    KeyCode::Char('d') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoStats),
-                    KeyCode::Char('t') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoTimeline),
+                    KeyCode::Char('q') if matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::Quit),
+                    KeyCode::Char('q') if !matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::GoHome),
+                    KeyCode::Char('s') if matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::GoSessions),
+                    KeyCode::Char('d') if matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::GoStats),
+                    KeyCode::Char('t') if matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::GoTimeline),
+                    KeyCode::Enter if matches!(self.current_screen, Screen::Home(_)) => Some(AppAction::LaunchSelectedAgent),
                     KeyCode::Enter if matches!(self.current_screen, Screen::Sessions(_)) => Some(AppAction::OpenDetail),
+                    KeyCode::Char('c') if matches!(self.current_screen, Screen::Sessions(_)) => Some(AppAction::ContinueSession),
                     KeyCode::Esc => Some(AppAction::GoBack),
                     _ => None,
                 };
@@ -86,7 +90,7 @@ impl App {
                 if let Some(action) = action {
                     match action {
                         AppAction::Quit => self.running = false,
-                        AppAction::GoHome => self.current_screen = Screen::Home,
+                        AppAction::GoHome => self.current_screen = Screen::Home(HomeState::default()),
                         AppAction::GoSessions => self.current_screen = Screen::Sessions(self.last_sessions.clone()),
                         AppAction::GoStats => self.current_screen = Screen::Stats,
                         AppAction::GoTimeline => self.current_screen = Screen::Timeline,
@@ -102,10 +106,10 @@ impl App {
                         AppAction::GoBack => {
                             self.current_screen = match &self.current_screen {
                                 Screen::Detail(_, _) => Screen::Sessions(self.last_sessions.clone()),
-                                Screen::Sessions(_) => Screen::Home,
-                                Screen::Timeline => Screen::Home,
-                                Screen::Stats => Screen::Home,
-                                Screen::Home => Screen::Home,
+                                Screen::Sessions(_) => Screen::Home(HomeState::default()),
+                                Screen::Timeline => Screen::Home(HomeState::default()),
+                                Screen::Stats => Screen::Home(HomeState::default()),
+                                Screen::Home(_) => Screen::Home(HomeState::default()),
                             };
                         }
                         AppAction::ToggleHelp => self.show_help = !self.show_help,
@@ -116,6 +120,23 @@ impl App {
                             }
                             if let Screen::Sessions(state) = &mut self.current_screen {
                                 state.searching = true;
+                            }
+                        }
+                        AppAction::LaunchSelectedAgent => {
+                            if let Screen::Home(state) = &self.current_screen {
+                                if let Some(agent) = selected_agent(state) {
+                                    let _ = self.run_external_agent(agent, None);
+                                } else {
+                                    self.toasts.push(crate::tui::widgets::Toast::warning("No installed agent found".to_string()));
+                                }
+                            }
+                        }
+                        AppAction::ContinueSession => {
+                            if let Screen::Sessions(state) = &self.current_screen {
+                                let sessions = filtered_sessions(state);
+                                if let Some(item) = sessions.get(state.selected) {
+                                    let _ = self.run_external_agent(&item.agent, Some(&item.name));
+                                }
                             }
                         }
                     }
@@ -171,6 +192,32 @@ impl App {
         );
     }
 
+    fn run_external_agent(&mut self, agent: &str, workspace: Option<&str>) -> Result<()> {
+        let mut stdout = std::io::stdout();
+        disable_raw_mode()?;
+        execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
+
+        let status = if let Some(name) = workspace {
+            let dir = crate::session::get_workspaces_dir().join(name);
+            Command::new(agent).current_dir(dir).status()
+        } else {
+            let exe = std::env::current_exe()?;
+            Command::new(exe).arg(agent).status()
+        };
+
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        enable_raw_mode()?;
+
+        if let Ok(s) = status {
+            if !s.success() {
+                self.toasts.push(crate::tui::widgets::Toast::warning(format!("{} exited with {:?}", agent, s.code())));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[allow(dead_code)]
     pub fn quit(&mut self) {
         self.running = false;
     }
@@ -187,4 +234,6 @@ enum AppAction {
     ToggleHelp,
     StartGoto,
     FocusSearch,
+    LaunchSelectedAgent,
+    ContinueSession,
 }

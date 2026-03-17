@@ -11,7 +11,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
-use colored::Colorize;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::thread;
+use std::time::Duration;
 
 use crate::sandbox::SandboxFs;
 use crate::recorder::Recorder;
@@ -122,6 +124,21 @@ fn run_agent(agent: &str) -> Result<()> {
     let sfs = SandboxFs::new(&workspace)?;
     let _ = sfs.mount();
 
+    let snapshot_dir = workspace.join(".snapshot");
+    std::fs::create_dir_all(&snapshot_dir)?;
+    let _ = snapshot_workspace(&workspace, &snapshot_dir.join("latest"));
+
+    let running = Arc::new(AtomicBool::new(true));
+    let running_bg = running.clone();
+    let workspace_bg = workspace.clone();
+    let snapshot_bg = snapshot_dir.clone();
+    let snapshot_handle = thread::spawn(move || {
+        while running_bg.load(Ordering::Relaxed) {
+            let _ = snapshot_workspace(&workspace_bg, &snapshot_bg.join("latest"));
+            thread::sleep(Duration::from_secs(30));
+        }
+    });
+
     let mut recorder = Recorder::new(&sandbox_name, agent, "interactive", &workspace.join("logs"))?;
 
     if !session::has_sessions() {
@@ -150,6 +167,10 @@ fn run_agent(agent: &str) -> Result<()> {
         }));
     }
 
+    running.store(false, Ordering::Relaxed);
+    let _ = snapshot_handle.join();
+    let _ = snapshot_workspace(&workspace, &snapshot_dir.join("latest"));
+
     let _ = recorder.finish();
 
     // If session > 5min, offer to notify
@@ -162,6 +183,33 @@ fn run_agent(agent: &str) -> Result<()> {
 
     if let Ok(Some(code)) = status.map(|s| s.code()) {
         std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn snapshot_workspace(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
+    if dst.exists() {
+        std::fs::remove_dir_all(dst)?;
+    }
+    copy_dir_recursive(src, dst)?;
+    Ok(())
+}
+
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        let name = entry.file_name();
+        if name == ".snapshot" {
+            continue;
+        }
+        let target = dst.join(&name);
+        if path.is_dir() {
+            copy_dir_recursive(&path, &target)?;
+        } else if path.is_file() {
+            let _ = std::fs::copy(&path, &target)?;
+        }
     }
     Ok(())
 }

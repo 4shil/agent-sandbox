@@ -1,7 +1,8 @@
+#![allow(dead_code)]
+
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
-    text::Line,
+    style::Style,
     widgets::{Block as TuiBlock, Borders, List, ListItem, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };

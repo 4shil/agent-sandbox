@@ -8,7 +8,7 @@ use ratatui::{
 use crossterm::event::{KeyEvent, KeyCode};
 
 use crate::tui::Theme;
-use crate::tui::widgets::{StatusBar, ToastManager, Toast};
+use crate::tui::widgets::{StatusBar, ToastManager};
 use crate::recorder::SessionRecord;
 
 const LOGO: &str = r#"
@@ -30,16 +30,20 @@ const AGENTS: &[(&str, &str, bool)] = &[
 
 pub struct HomeScreen;
 
+#[derive(Default, Clone)]
+pub struct HomeState {
+    pub selected: usize,
+}
+
 #[derive(Clone)]
 struct RecentSession {
     name: String,
     agent: String,
     duration_ms: u64,
-    actions: usize,
 }
 
 impl HomeScreen {
-    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme) {
+    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &HomeState) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -69,7 +73,7 @@ impl HomeScreen {
             ])
             .split(main_chunks[1]);
 
-        render_agents(frame, body_chunks[0], theme);
+        render_agents(frame, body_chunks[0], theme, state);
         render_recent_sessions(frame, body_chunks[1], theme);
 
         let hints = Paragraph::new(
@@ -88,13 +92,19 @@ impl HomeScreen {
         status.render(frame, chunks[1], theme);
     }
 
-    pub fn handle_key(key: KeyEvent, toasts: &mut ToastManager) {
+    pub fn handle_key(key: KeyEvent, _toasts: &mut ToastManager, state: &mut HomeState) {
+        let installed_count = AGENTS.iter().filter(|(_, _, i)| *i).count();
+        if installed_count == 0 {
+            return;
+        }
         match key.code {
-            KeyCode::Char('s') => {
-                // Screen transition handled in app
+            KeyCode::Up => {
+                if state.selected > 0 {
+                    state.selected -= 1;
+                }
             }
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                toasts.push(Toast::info("Select an agent to launch".to_string()));
+            KeyCode::Down => {
+                state.selected = (state.selected + 1).min(installed_count.saturating_sub(1));
             }
             _ => {}
         }
@@ -103,16 +113,11 @@ impl HomeScreen {
     pub fn tick() {}
 }
 
-fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let items: Vec<ListItem> = AGENTS.iter().map(|(name, desc, installed)| {
-        let mark = if *installed { "✓" } else { " " };
-        let style = if *installed {
-            Style::default().fg(theme.success)
-        } else {
-            Style::default().fg(theme.muted)
-        };
-        ListItem::new(Line::from(format!("  [{}] {:<14} {}", mark, name, desc)))
-            .style(style)
+fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &HomeState) {
+    let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
+    let items: Vec<ListItem> = installed.iter().map(|(name, desc, _)| {
+        ListItem::new(Line::from(format!("  [✓] {:<14} {}", name, desc)))
+            .style(Style::default().fg(theme.success))
     }).collect();
 
     frame.render_widget(
@@ -131,7 +136,20 @@ fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme) {
         height: area.height.saturating_sub(2),
     };
 
-    frame.render_widget(List::new(items), list_area);
+    use ratatui::widgets::ListState;
+    let list = List::new(items)
+        .highlight_symbol("▸ ")
+        .highlight_style(Style::default().fg(theme.primary).add_modifier(Modifier::BOLD));
+    let mut stateful = ListState::default();
+    if !installed.is_empty() {
+        stateful.select(Some(state.selected.min(installed.len() - 1)));
+    }
+    frame.render_stateful_widget(list, list_area, &mut stateful);
+}
+
+pub fn selected_agent(state: &HomeState) -> Option<&'static str> {
+    let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
+    installed.get(state.selected).map(|(name, _, _)| *name)
 }
 
 fn render_recent_sessions(frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -183,7 +201,6 @@ fn load_recent_sessions() -> Vec<RecentSession> {
             let logs = entry.path().join("logs");
 
             let mut duration_ms = 0u64;
-            let mut actions = 0usize;
             if let Ok(log_entries) = std::fs::read_dir(&logs) {
                 let mut latest_path = None;
                 let mut latest_time = None;
@@ -203,13 +220,12 @@ fn load_recent_sessions() -> Vec<RecentSession> {
                     if let Ok(content) = std::fs::read_to_string(path) {
                         if let Ok(record) = serde_json::from_str::<SessionRecord>(&content) {
                             duration_ms = record.duration_ms.unwrap_or(0);
-                            actions = record.actions.len();
                         }
                     }
                 }
             }
 
-            sessions.push(RecentSession { name, agent, duration_ms, actions });
+            sessions.push(RecentSession { name, agent, duration_ms });
         }
     }
 

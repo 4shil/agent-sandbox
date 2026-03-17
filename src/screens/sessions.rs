@@ -125,7 +125,7 @@ impl SessionsScreen {
             frame.render_stateful_widget(scrollbar, chunks[1], &mut scrollbar_state);
         }
 
-        let hints = Paragraph::new(Line::from(" / Search │ ↑↓ Navigate │ Enter Details │ Esc Back"))
+        let hints = Paragraph::new(Line::from(" / Search │ ↑↓ Navigate │ Enter Details │ C Continue │ Esc Back"))
             .style(theme.muted_style());
         frame.render_widget(hints, chunks[2]);
     }

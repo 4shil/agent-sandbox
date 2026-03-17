@@ -1,7 +1,8 @@
+#![allow(dead_code)]
+
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::Line,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::{Block as TuiBlock, Borders, Clear, Paragraph},
     Frame,
 };

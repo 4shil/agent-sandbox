@@ -1,6 +1,7 @@
+#![allow(dead_code)]
+
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
     widgets::{Block as TuiBlock, Borders, Paragraph},
     Frame,
 };

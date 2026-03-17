@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Line, Span},
+    text::Line,
     widgets::{Block as TuiBlock, Borders, BarChart, Paragraph},
     Frame,
 };
@@ -16,7 +16,6 @@ pub struct TimelineScreen;
 #[derive(Clone)]
 struct TimelineItem {
     name: String,
-    agent: String,
     duration_ms: u64,
 }
 
@@ -75,7 +74,6 @@ fn load_timeline() -> Vec<TimelineItem> {
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let name = entry.file_name().to_string_lossy().to_string();
-            let agent = name.split('-').next().unwrap_or("unknown").to_string();
             let logs = entry.path().join("logs");
 
             let mut duration_ms = 0u64;
@@ -103,7 +101,7 @@ fn load_timeline() -> Vec<TimelineItem> {
                 }
             }
 
-            sessions.push(TimelineItem { name, agent, duration_ms });
+            sessions.push(TimelineItem { name, duration_ms });
         }
     }
 

@@ -36,5 +36,3 @@ pub fn restore(mut terminal: Terminal) -> Result<()> {
 
 pub use event::{AppEvent, EventLoop};
 pub use theme::Theme;
-pub use app::App;
-pub use widgets::Toast;

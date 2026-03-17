@@ -4,7 +4,7 @@ mod detail;
 mod timeline;
 mod stats;
 
-pub use home::HomeScreen;
+pub use home::{HomeScreen, HomeState, selected_agent};
 pub use sessions::{SessionsScreen, SessionsState, filtered_sessions};
 pub use detail::DetailScreen;
 pub use timeline::TimelineScreen;
@@ -24,7 +24,7 @@ pub struct DetailState {
 }
 
 pub enum Screen {
-    Home,
+    Home(HomeState),
     Sessions(SessionsState),
     Detail(String, DetailState), // session id + ui state
     Timeline,
@@ -34,7 +34,7 @@ pub enum Screen {
 impl Screen {
     pub fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         match self {
-            Screen::Home => HomeScreen::render(frame, area, theme),
+            Screen::Home(state) => HomeScreen::render(frame, area, theme, state),
             Screen::Sessions(state) => SessionsScreen::render(frame, area, theme, state),
             Screen::Detail(id, state) => DetailScreen::render(frame, area, theme, id, state),
             Screen::Timeline => TimelineScreen::render(frame, area, theme),
@@ -44,7 +44,7 @@ impl Screen {
 
     pub fn handle_key(&mut self, key: KeyEvent, toasts: &mut ToastManager) {
         match self {
-            Screen::Home => HomeScreen::handle_key(key, toasts),
+            Screen::Home(state) => HomeScreen::handle_key(key, toasts, state),
             Screen::Sessions(state) => SessionsScreen::handle_key(key, state, toasts),
             Screen::Detail(id, state) => DetailScreen::handle_key(key, toasts, id, state),
             Screen::Timeline => TimelineScreen::handle_key(key, toasts),
@@ -54,7 +54,7 @@ impl Screen {
 
     pub fn tick(&mut self) {
         match self {
-            Screen::Home => HomeScreen::tick(),
+            Screen::Home(_) => HomeScreen::tick(),
             Screen::Sessions(_) => SessionsScreen::tick(),
             _ => {}
         }

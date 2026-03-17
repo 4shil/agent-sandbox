@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block as TuiBlock, Borders, BarChart, Paragraph},
     Frame,
 };
-use crossterm::event::{KeyEvent, KeyCode};
+use crossterm::event::KeyEvent;
 
 use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;

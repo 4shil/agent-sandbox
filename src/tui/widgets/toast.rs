@@ -1,8 +1,9 @@
+#![allow(dead_code)]
+
 use ratatui::{
-    layout::{Alignment, Rect},
-    style::{Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, Clear, Paragraph},
+    layout::Rect,
+    style::Style,
+    widgets::{Clear, Paragraph},
     Frame,
 };
 use crate::tui::Theme;

@@ -3,6 +3,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum AppEvent {
     Key(KeyEvent),

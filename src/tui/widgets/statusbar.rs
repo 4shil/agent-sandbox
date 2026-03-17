@@ -1,6 +1,8 @@
+#![allow(dead_code)]
+
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::Style,
     text::Line,
     widgets::Paragraph,
     Frame,

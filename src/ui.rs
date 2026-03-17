@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use anyhow::Result;
 use colored::Colorize;
 use std::io::{self, Write};
@@ -50,7 +52,7 @@ pub fn show_quick_help() {
 }
 
 /// Show first-run tip
-pub fn show_first_run_tip(agent: &str, sandbox_name: &str) {
+pub fn show_first_run_tip(agent: &str, _sandbox_name: &str) {
     println!();
     println!("  ┌──────────────────────────────────────────┐");
     println!("  │  First session! Everything is recorded.   │");
@@ -61,7 +63,7 @@ pub fn show_first_run_tip(agent: &str, sandbox_name: &str) {
 }
 
 /// Show session complete summary
-pub fn show_session_complete(sandbox_name: &str, duration_ms: u64, session_id: &str) {
+pub fn show_session_complete(_sandbox_name: &str, duration_ms: u64, session_id: &str) {
     let secs = duration_ms as f64 / 1000.0;
     let time_str = if secs < 60.0 {
         format!("{:.0}s", secs)
