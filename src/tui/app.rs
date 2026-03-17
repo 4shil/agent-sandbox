@@ -198,16 +198,24 @@ impl App {
             let dir = crate::session::get_workspaces_dir().join(name);
             Command::new(agent).current_dir(dir).status()
         } else {
-            let exe = std::env::current_exe()?;
-            Command::new(exe).arg(agent).status()
+            // Run agent directly (not through abox)
+            Command::new(agent).status()
         };
 
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         enable_raw_mode()?;
 
-        if let Ok(s) = status {
-            if !s.success() {
-                self.toasts.push(crate::tui::widgets::Toast::warning(format!("{} exited with {:?}", agent, s.code())));
+        match &status {
+            Ok(s) if s.success() => {}
+            Ok(s) => {
+                self.toasts.push(crate::tui::widgets::Toast::warning(
+                    format!("{} exited with {:?}", agent, s.code())
+                ));
+            }
+            Err(e) => {
+                self.toasts.push(crate::tui::widgets::Toast::error(
+                    format!("failed to launch {}: {}", agent, e)
+                ));
             }
         }
 
