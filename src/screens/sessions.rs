@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{
         Block as TuiBlock, Borders, List, ListItem, Paragraph, ListState, Scrollbar,
         ScrollbarOrientation, ScrollbarState,
@@ -81,15 +81,14 @@ impl SessionsScreen {
             .map(|s| {
                 let date = format_date(s.started_at);
                 let duration = format_duration(s.duration_ms);
-                ListItem::new(Line::from(format!(
-                    "  {:<28} {:<10} {:<12} {:<10} {:<7} {:<6}",
-                    s.name,
-                    s.agent,
-                    date,
-                    duration,
-                    s.actions,
-                    "-"
-                )))
+
+                let mut spans = vec![Span::raw("  ")];
+                spans.extend(highlight_owned_spans(format!("{:<28}", s.name), &state.query, theme));
+                spans.push(Span::raw(" "));
+                spans.extend(highlight_owned_spans(format!("{:<10}", s.agent), &state.query, theme));
+                spans.push(Span::raw(format!(" {:<12} {:<10} {:<7} {:<6}", date, duration, s.actions, "-")));
+
+                ListItem::new(Line::from(spans))
             })
             .collect();
 
@@ -230,6 +229,25 @@ fn format_duration(ms: u64) -> String {
         format!("{}m{}s", mins, secs % 60)
     } else {
         format!("{}s", secs)
+    }
+}
+
+fn highlight_owned_spans(text: String, query: &str, theme: &Theme) -> Vec<Span<'static>> {
+    if query.is_empty() {
+        return vec![Span::raw(text)];
+    }
+
+    let lower_text = text.to_lowercase();
+    let lower_query = query.to_lowercase();
+    if let Some(start) = lower_text.find(&lower_query) {
+        let end = (start + lower_query.len()).min(text.len());
+        vec![
+            Span::raw(text[..start].to_string()),
+            Span::styled(text[start..end].to_string(), Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+            Span::raw(text[end..].to_string()),
+        ]
+    } else {
+        vec![Span::raw(text)]
     }
 }
 
