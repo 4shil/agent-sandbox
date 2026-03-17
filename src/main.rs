@@ -21,7 +21,7 @@ use crate::recorder::Recorder;
 #[derive(Parser)]
 #[command(name = "abox")]
 #[command(about = "sandbox for ai coding agents")]
-#[command(long_about = "Launch any AI agent inside an isolated sandbox.\n\n  abox claude          launch Claude\n  abox opencode        launch OpenCode\n  abox list            show recorded sessions\n  abox replay <id>     replay a session")]
+#[command(long_about = "sandbox for ai coding agents\n\n  abox                 open dashboard (default)\n  abox claude          launch Claude\n  abox opencode        launch OpenCode\n  abox list            show recorded sessions\n  abox replay <id>     replay a session")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -97,16 +97,11 @@ fn main() -> Result<()> {
             Commands::Watch => session::watch_sessions()?,
         },
         None => {
-            let agent = cli.agent.unwrap_or_default();
-            if agent.is_empty() {
-                ui::show_quick_help();
-            } else {
-                if which::which(&agent).is_err() {
-                    ui::show_agent_not_found(&agent);
-                    std::process::exit(1);
-                }
-                run_agent(&agent)?;
-            }
+            // Default to dashboard when no arguments given
+            let mut terminal = tui::init()?;
+            let mut app = tui::app::App::new();
+            app.run(&mut terminal)?;
+            tui::restore(terminal)?;
         }
     }
     Ok(())
