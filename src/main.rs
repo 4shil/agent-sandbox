@@ -140,16 +140,23 @@ fn run_agent(agent: &str) -> Result<()> {
         ui::show_first_run_tip(agent, &sandbox_name);
     }
 
-    let mut cmd = Command::new(agent);
-    cmd.current_dir(sfs.agent_root());
-    cmd.envs(std::env::vars());
-    cmd.stdin(Stdio::inherit());
-    cmd.stdout(Stdio::inherit());
-    cmd.stderr(Stdio::inherit());
+    // Clean terminal state before handing off to agent
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    let _ = std::io::Write::flush(&mut std::io::stderr());
+    let _ = crossterm::terminal::disable_raw_mode();
 
     let start = SystemTime::now();
-    let status = cmd.status();
+    let status = Command::new(agent)
+        .current_dir(sfs.agent_root())
+        .envs(std::env::vars())
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status();
     let duration = start.elapsed()?.as_millis() as u64;
+
+    // Re-enable raw mode only if we're going back to a TUI
+    let _ = crossterm::terminal::enable_raw_mode();
 
     let _ = recorder.record_action("session", serde_json::json!({
         "duration_ms": duration,
