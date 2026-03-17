@@ -12,6 +12,7 @@ use crossterm::event::{KeyEvent, KeyCode};
 
 use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;
+use crate::recorder::SessionRecord;
 
 #[derive(Default, Clone)]
 pub struct SessionsState {
@@ -25,21 +26,14 @@ pub struct SessionsScreen;
 pub struct SessionItem {
     pub name: String,
     pub agent: String,
+    pub started_at: u64,
+    pub duration_ms: u64,
     pub actions: usize,
 }
 
 impl SessionsScreen {
     pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &SessionsState) {
-        let sessions = load_sessions();
-        let filtered: Vec<_> = if state.query.is_empty() {
-            sessions
-        } else {
-            let q = state.query.to_lowercase();
-            sessions
-                .into_iter()
-                .filter(|s| s.name.to_lowercase().contains(&q) || s.agent.to_lowercase().contains(&q))
-                .collect()
-        };
+        let filtered = filtered_sessions(state);
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -68,12 +62,33 @@ impl SessionsScreen {
             },
         );
 
+        let columns = Paragraph::new(Line::from(
+            "  Name                        Agent      Date         Duration   Files  Tags"
+        ))
+        .style(theme.muted_style());
+        frame.render_widget(
+            columns,
+            Rect {
+                x: chunks[1].x + 1,
+                y: chunks[1].y,
+                width: chunks[1].width.saturating_sub(2),
+                height: 1,
+            },
+        );
+
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|s| {
+                let date = format_date(s.started_at);
+                let duration = format_duration(s.duration_ms);
                 ListItem::new(Line::from(format!(
-                    "  {:<30} {:<12} {} actions",
-                    s.name, s.agent, s.actions
+                    "  {:<28} {:<10} {:<12} {:<10} {:<6} {:<6}",
+                    s.name,
+                    s.agent,
+                    date,
+                    duration,
+                    "-",
+                    "-"
                 )))
             })
             .collect();
@@ -99,9 +114,9 @@ impl SessionsScreen {
 
         let list_area = Rect {
             x: chunks[1].x + 1,
-            y: chunks[1].y + 1,
+            y: chunks[1].y + 2,
             width: chunks[1].width.saturating_sub(2),
-            height: chunks[1].height.saturating_sub(2),
+            height: chunks[1].height.saturating_sub(3),
         };
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
@@ -149,8 +164,7 @@ impl SessionsScreen {
 }
 
 fn load_sessions() -> Vec<SessionItem> {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let dir = format!("{}/.agent-sandbox/workspaces", home);
+    let dir = crate::session::get_workspaces_dir();
     let mut sessions = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -158,13 +172,65 @@ fn load_sessions() -> Vec<SessionItem> {
             let name = entry.file_name().to_string_lossy().to_string();
             let agent = name.split('-').next().unwrap_or("unknown").to_string();
             let logs = entry.path().join("logs");
-            let actions = std::fs::read_dir(&logs).map(|d| d.count()).unwrap_or(0);
-            sessions.push(SessionItem { name, agent, actions });
+
+            let (duration_ms, actions, started_at) = if let Some(record) = load_latest_record(&logs) {
+                (record.duration_ms.unwrap_or(0), record.actions.len(), record.started_at)
+            } else {
+                (0u64, std::fs::read_dir(&logs).map(|d| d.count()).unwrap_or(0), 0u64)
+            };
+
+            sessions.push(SessionItem { name, agent, started_at, duration_ms, actions });
         }
     }
 
     sessions.sort_by(|a, b| b.name.cmp(&a.name));
     sessions
+}
+
+fn load_latest_record(logs: &std::path::Path) -> Option<SessionRecord> {
+    if let Ok(log_entries) = std::fs::read_dir(logs) {
+        let mut latest_path = None;
+        let mut latest_time = None;
+        for log in log_entries.filter_map(|e| e.ok()) {
+            let metadata = log.metadata().and_then(|m| m.modified()).ok();
+            let is_newer = match (latest_time, metadata) {
+                (None, Some(_)) => true,
+                (Some(prev), Some(next)) => next > prev,
+                _ => false,
+            };
+            if latest_path.is_none() || is_newer {
+                latest_path = Some(log.path());
+                latest_time = metadata;
+            }
+        }
+        if let Some(path) = latest_path {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                if let Ok(record) = serde_json::from_str::<SessionRecord>(&content) {
+                    return Some(record);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn format_date(ts: u64) -> String {
+    chrono::DateTime::from_timestamp(ts as i64, 0)
+        .map(|t| t.format("%m-%d %H:%M").to_string())
+        .unwrap_or_else(|| "-".into())
+}
+
+fn format_duration(ms: u64) -> String {
+    let secs = ms / 1000;
+    let mins = secs / 60;
+    let hrs = mins / 60;
+    if hrs > 0 {
+        format!("{}h{}m", hrs, mins % 60)
+    } else if mins > 0 {
+        format!("{}m{}s", mins, secs % 60)
+    } else {
+        format!("{}s", secs)
+    }
 }
 
 pub fn filtered_sessions(state: &SessionsState) -> Vec<SessionItem> {
