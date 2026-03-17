@@ -30,9 +30,18 @@ const AGENTS: &[(&str, &str, bool)] = &[
 
 pub struct HomeScreen;
 
-#[derive(Default, Clone)]
 pub struct HomeState {
     pub selected: usize,
+    pub list_state: ratatui::widgets::ListState,
+}
+
+impl Default for HomeState {
+    fn default() -> Self {
+        Self {
+            selected: 0,
+            list_state: ratatui::widgets::ListState::default(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -43,7 +52,7 @@ struct RecentSession {
 }
 
 impl HomeScreen {
-    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &HomeState) {
+    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeState) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -87,13 +96,14 @@ impl HomeScreen {
         let status_text = format!("Sessions: {} │ Agents: {}", session_count, agent_count);
         let status = StatusBar::new(
             &status_text,
-            "v1.0.0-beta │ Space: 2.1GB",
+            "v1.0.0 │ Space: 2.1GB",
         );
         status.render(frame, chunks[1], theme);
     }
 
     pub fn handle_key(key: KeyEvent, _toasts: &mut ToastManager, state: &mut HomeState) {
-        let installed_count = AGENTS.iter().filter(|(_, _, i)| *i).count();
+        let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
+        let installed_count = installed.len();
         if installed_count == 0 {
             return;
         }
@@ -108,12 +118,13 @@ impl HomeScreen {
             }
             _ => {}
         }
+        state.list_state.select(Some(state.selected.min(installed_count - 1)));
     }
 
     pub fn tick() {}
 }
 
-fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &HomeState) {
+fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeState) {
     let installed: Vec<_> = AGENTS.iter().filter(|(_, _, installed)| *installed).collect();
     let items: Vec<ListItem> = installed.iter().map(|(name, desc, _)| {
         ListItem::new(Line::from(format!("  [✓] {:<14} {}", name, desc)))
@@ -136,15 +147,14 @@ fn render_agents(frame: &mut Frame, area: Rect, theme: &Theme, state: &HomeState
         height: area.height.saturating_sub(2),
     };
 
-    use ratatui::widgets::ListState;
     let list = List::new(items)
         .highlight_symbol("▸ ")
         .highlight_style(Style::default().fg(theme.primary).add_modifier(Modifier::BOLD));
-    let mut stateful = ListState::default();
+
     if !installed.is_empty() {
-        stateful.select(Some(state.selected.min(installed.len() - 1)));
+        state.list_state.select(Some(state.selected.min(installed.len() - 1)));
     }
-    frame.render_stateful_widget(list, list_area, &mut stateful);
+    frame.render_stateful_widget(list, list_area, &mut state.list_state);
 }
 
 pub fn selected_agent(state: &HomeState) -> Option<&'static str> {

@@ -3,7 +3,7 @@ use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block as TuiBlock, Borders, List, ListItem, Paragraph, ListState, Scrollbar,
+        Block as TuiBlock, Borders, List, ListItem, Paragraph, Scrollbar,
         ScrollbarOrientation, ScrollbarState,
     },
     Frame,
@@ -14,11 +14,12 @@ use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;
 use crate::recorder::SessionRecord;
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct SessionsState {
     pub selected: usize,
     pub query: String,
     pub searching: bool,
+    pub list_state: ratatui::widgets::ListState,
 }
 
 pub struct SessionsScreen;
@@ -32,7 +33,7 @@ pub struct SessionItem {
 }
 
 impl SessionsScreen {
-    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &SessionsState) {
+    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut SessionsState) {
         let filtered = filtered_sessions(state);
 
         let chunks = Layout::default()
@@ -92,10 +93,9 @@ impl SessionsScreen {
             })
             .collect();
 
-        let mut list_state = ListState::default();
         if !items.is_empty() {
             let sel = state.selected.min(items.len() - 1);
-            list_state.select(Some(sel));
+            state.list_state.select(Some(sel));
         }
 
         let list = List::new(items)
@@ -117,7 +117,7 @@ impl SessionsScreen {
             width: chunks[1].width.saturating_sub(2),
             height: chunks[1].height.saturating_sub(3),
         };
-        frame.render_stateful_widget(list, list_area, &mut list_state);
+        frame.render_stateful_widget(list, list_area, &mut state.list_state);
 
         if filtered.len() > list_area.height as usize {
             let mut scrollbar_state = ScrollbarState::new(filtered.len()).position(state.selected);
@@ -131,6 +131,7 @@ impl SessionsScreen {
     }
 
     pub fn handle_key(key: KeyEvent, state: &mut SessionsState, _toasts: &mut ToastManager) {
+        let filtered_count = filtered_sessions(state).len();
         match key.code {
             KeyCode::Char('/') => state.searching = true,
             KeyCode::Esc => {
@@ -143,7 +144,9 @@ impl SessionsScreen {
                 }
             }
             KeyCode::Down => {
-                state.selected = state.selected.saturating_add(1);
+                if filtered_count > 0 {
+                    state.selected = (state.selected + 1).min(filtered_count - 1);
+                }
             }
             KeyCode::Backspace => {
                 if state.searching {
@@ -156,6 +159,10 @@ impl SessionsScreen {
                 }
             }
             _ => {}
+        }
+        // Sync list state
+        if filtered_count > 0 {
+            state.list_state.select(Some(state.selected.min(filtered_count - 1)));
         }
     }
 

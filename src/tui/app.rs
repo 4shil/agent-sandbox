@@ -13,7 +13,6 @@ pub struct App {
     pub theme: Theme,
     pub toasts: ToastManager,
     pub screen_size: Rect,
-    pub last_sessions: SessionsState,
     pub show_help: bool,
     pub goto_prefix: bool,
 }
@@ -26,7 +25,6 @@ impl App {
             theme: Theme::dark(),
             toasts: ToastManager::new(),
             screen_size: Rect::default(),
-            last_sessions: SessionsState::default(),
             show_help: false,
             goto_prefix: false,
         }
@@ -63,7 +61,7 @@ impl App {
                     self.goto_prefix = false;
                     match key.code {
                         KeyCode::Char('h') => self.current_screen = Screen::Home(HomeState::default()),
-                        KeyCode::Char('s') => self.current_screen = Screen::Sessions(self.last_sessions.clone()),
+                        KeyCode::Char('s') => self.current_screen = Screen::Sessions(SessionsState::default()),
                         KeyCode::Char('t') => self.current_screen = Screen::Timeline,
                         KeyCode::Char('d') => self.current_screen = Screen::Stats,
                         _ => {}
@@ -91,12 +89,11 @@ impl App {
                     match action {
                         AppAction::Quit => self.running = false,
                         AppAction::GoHome => self.current_screen = Screen::Home(HomeState::default()),
-                        AppAction::GoSessions => self.current_screen = Screen::Sessions(self.last_sessions.clone()),
+                        AppAction::GoSessions => self.current_screen = Screen::Sessions(SessionsState::default()),
                         AppAction::GoStats => self.current_screen = Screen::Stats,
                         AppAction::GoTimeline => self.current_screen = Screen::Timeline,
                         AppAction::OpenDetail => {
                             if let Screen::Sessions(state) = &self.current_screen {
-                                self.last_sessions = state.clone();
                                 let sessions = filtered_sessions(state);
                                 if let Some(item) = sessions.get(state.selected) {
                                     self.current_screen = Screen::Detail(item.name.clone(), DetailState::default());
@@ -105,7 +102,7 @@ impl App {
                         }
                         AppAction::GoBack => {
                             self.current_screen = match &self.current_screen {
-                                Screen::Detail(_, _) => Screen::Sessions(self.last_sessions.clone()),
+                                Screen::Detail(_, _) => Screen::Sessions(SessionsState::default()),
                                 Screen::Sessions(_) => Screen::Home(HomeState::default()),
                                 Screen::Timeline => Screen::Home(HomeState::default()),
                                 Screen::Stats => Screen::Home(HomeState::default()),
@@ -116,7 +113,7 @@ impl App {
                         AppAction::StartGoto => self.goto_prefix = true,
                         AppAction::FocusSearch => {
                             if !matches!(self.current_screen, Screen::Sessions(_)) {
-                                self.current_screen = Screen::Sessions(self.last_sessions.clone());
+                                self.current_screen = Screen::Sessions(SessionsState::default());
                             }
                             if let Screen::Sessions(state) = &mut self.current_screen {
                                 state.searching = true;
