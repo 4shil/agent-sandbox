@@ -10,17 +10,23 @@ pub use detail::DetailScreen;
 pub use timeline::TimelineScreen;
 pub use stats::StatsScreen;
 
-use anyhow::Result;
 use ratatui::{layout::Rect, Frame};
 use crossterm::event::KeyEvent;
+use std::collections::BTreeSet;
 
 use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;
 
+#[derive(Default, Clone)]
+pub struct DetailState {
+    pub selected: usize,
+    pub expanded: BTreeSet<usize>,
+}
+
 pub enum Screen {
     Home,
     Sessions(SessionsState),
-    Detail(String), // session id
+    Detail(String, DetailState), // session id + ui state
     Timeline,
     Stats,
 }
@@ -30,7 +36,7 @@ impl Screen {
         match self {
             Screen::Home => HomeScreen::render(frame, area, theme),
             Screen::Sessions(state) => SessionsScreen::render(frame, area, theme, state),
-            Screen::Detail(id) => DetailScreen::render(frame, area, theme, id),
+            Screen::Detail(id, state) => DetailScreen::render(frame, area, theme, id, state),
             Screen::Timeline => TimelineScreen::render(frame, area, theme),
             Screen::Stats => StatsScreen::render(frame, area, theme),
         }
@@ -40,7 +46,7 @@ impl Screen {
         match self {
             Screen::Home => HomeScreen::handle_key(key, toasts),
             Screen::Sessions(state) => SessionsScreen::handle_key(key, state, toasts),
-            Screen::Detail(id) => DetailScreen::handle_key(key, toasts, id),
+            Screen::Detail(id, state) => DetailScreen::handle_key(key, toasts, id, state),
             Screen::Timeline => TimelineScreen::handle_key(key, toasts),
             Screen::Stats => StatsScreen::handle_key(key, toasts),
         }

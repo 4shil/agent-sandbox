@@ -1,8 +1,8 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::Line,
-    widgets::{Block as TuiBlock, Borders, List, ListItem, Paragraph, Wrap},
+    text::{Line, Span},
+    widgets::{Block as TuiBlock, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode};
@@ -10,11 +10,12 @@ use crossterm::event::{KeyEvent, KeyCode};
 use crate::tui::Theme;
 use crate::tui::widgets::{ToastManager, Toast};
 use crate::recorder::SessionRecord;
+use crate::screens::DetailState;
 
 pub struct DetailScreen;
 
 impl DetailScreen {
-    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, id: &str) {
+    pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, id: &str, state: &mut DetailState) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -63,10 +64,9 @@ impl DetailScreen {
         let meta_area = Rect { x: chunks[1].x + 1, y: chunks[1].y + 1, width: chunks[1].width.saturating_sub(2), height: chunks[1].height.saturating_sub(2) };
         frame.render_widget(meta, meta_area);
 
-        let actions: Vec<ListItem> = if let Some(rec) = record {
+        let actions: Vec<ListItem> = if let Some(rec) = &record {
             rec.actions
                 .iter()
-                .take(12)
                 .enumerate()
                 .map(|(i, a)| {
                     let detail = a.data.get("path")
@@ -77,12 +77,30 @@ impl DetailScreen {
                     } else {
                         format!("  {:<10} {}: {}", format!("#{}", i + 1), a.action_type, detail)
                     };
-                    ListItem::new(Line::from(line))
+
+                    let mut lines = vec![Line::from(line)];
+                    if state.expanded.contains(&i) {
+                        let json = serde_json::to_string_pretty(&a.data).unwrap_or_else(|_| "{}".into());
+                        for l in json.lines().take(6) {
+                            lines.push(Line::from(vec![
+                                Span::styled("    ", theme.muted_style()),
+                                Span::styled(l.to_string(), theme.muted_style()),
+                            ]));
+                        }
+                    }
+
+                    ListItem::new(lines)
                 })
                 .collect()
         } else {
             vec![ListItem::new(Line::from("  No actions found"))]
         };
+
+        if !actions.is_empty() {
+            state.selected = state.selected.min(actions.len() - 1);
+        } else {
+            state.selected = 0;
+        }
 
         let list = List::new(actions)
             .highlight_style(Style::default().fg(theme.primary).add_modifier(Modifier::BOLD))
@@ -97,7 +115,9 @@ impl DetailScreen {
             chunks[2],
         );
         let action_area = Rect { x: chunks[2].x + 1, y: chunks[2].y + 1, width: chunks[2].width.saturating_sub(2), height: chunks[2].height.saturating_sub(2) };
-        frame.render_widget(list, action_area);
+        let mut list_state = ListState::default();
+        list_state.select(Some(state.selected));
+        frame.render_stateful_widget(list, action_area, &mut list_state);
 
         let hints = Paragraph::new(
             Line::from(" E Edit │ T Tag │ N Note │ D Diff │ Esc Back")
@@ -106,8 +126,26 @@ impl DetailScreen {
         frame.render_widget(hints, chunks[3]);
     }
 
-    pub fn handle_key(key: KeyEvent, toasts: &mut ToastManager, _id: &str) {
+    pub fn handle_key(key: KeyEvent, toasts: &mut ToastManager, id: &str, state: &mut DetailState) {
+        let action_count = load_session_record(id).map(|r| r.actions.len()).unwrap_or(0);
         match key.code {
+            KeyCode::Up => {
+                if state.selected > 0 {
+                    state.selected -= 1;
+                }
+            }
+            KeyCode::Down => {
+                if action_count > 0 {
+                    state.selected = (state.selected + 1).min(action_count.saturating_sub(1));
+                }
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                if state.expanded.contains(&state.selected) {
+                    state.expanded.remove(&state.selected);
+                } else {
+                    state.expanded.insert(state.selected);
+                }
+            }
             KeyCode::Char('t') => {
                 toasts.push(Toast::info("Tag feature coming soon".to_string()));
             }
