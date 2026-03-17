@@ -63,7 +63,7 @@ impl SessionsScreen {
         );
 
         let columns = Paragraph::new(Line::from(
-            "  Name                        Agent      Date         Duration   Files  Tags"
+            "  Name                        Agent      Date         Duration   Actions Tags"
         ))
         .style(theme.muted_style());
         frame.render_widget(
@@ -82,12 +82,12 @@ impl SessionsScreen {
                 let date = format_date(s.started_at);
                 let duration = format_duration(s.duration_ms);
                 ListItem::new(Line::from(format!(
-                    "  {:<28} {:<10} {:<12} {:<10} {:<6} {:<6}",
+                    "  {:<28} {:<10} {:<12} {:<10} {:<7} {:<6}",
                     s.name,
                     s.agent,
                     date,
                     duration,
-                    "-",
+                    s.actions,
                     "-"
                 )))
             })
