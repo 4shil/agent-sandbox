@@ -12,6 +12,7 @@ pub struct App {
     pub theme: Theme,
     pub toasts: ToastManager,
     pub screen_size: Rect,
+    pub last_sessions: SessionsState,
 }
 
 impl App {
@@ -22,6 +23,7 @@ impl App {
             theme: Theme::dark(),
             toasts: ToastManager::new(),
             screen_size: Rect::default(),
+            last_sessions: SessionsState::default(),
         }
     }
 
@@ -50,7 +52,7 @@ impl App {
                     KeyCode::Char('d') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoStats),
                     KeyCode::Char('t') if matches!(self.current_screen, Screen::Home) => Some(AppAction::GoTimeline),
                     KeyCode::Enter if matches!(self.current_screen, Screen::Sessions(_)) => Some(AppAction::OpenDetail),
-                    KeyCode::Esc => Some(AppAction::GoHome),
+                    KeyCode::Esc => Some(AppAction::GoBack),
                     _ => None,
                 };
                 
@@ -58,16 +60,26 @@ impl App {
                     match action {
                         AppAction::Quit => self.running = false,
                         AppAction::GoHome => self.current_screen = Screen::Home,
-                        AppAction::GoSessions => self.current_screen = Screen::Sessions(SessionsState::default()),
+                        AppAction::GoSessions => self.current_screen = Screen::Sessions(self.last_sessions.clone()),
                         AppAction::GoStats => self.current_screen = Screen::Stats,
                         AppAction::GoTimeline => self.current_screen = Screen::Timeline,
                         AppAction::OpenDetail => {
                             if let Screen::Sessions(state) = &self.current_screen {
+                                self.last_sessions = state.clone();
                                 let sessions = filtered_sessions(state);
                                 if let Some(item) = sessions.get(state.selected) {
                                     self.current_screen = Screen::Detail(item.name.clone());
                                 }
                             }
+                        }
+                        AppAction::GoBack => {
+                            self.current_screen = match &self.current_screen {
+                                Screen::Detail(_) => Screen::Sessions(self.last_sessions.clone()),
+                                Screen::Sessions(_) => Screen::Home,
+                                Screen::Timeline => Screen::Home,
+                                Screen::Stats => Screen::Home,
+                                Screen::Home => Screen::Home,
+                            };
                         }
                     }
                 } else {
@@ -103,4 +115,5 @@ enum AppAction {
     GoStats,
     GoTimeline,
     OpenDetail,
+    GoBack,
 }

@@ -13,7 +13,7 @@ use crossterm::event::{KeyEvent, KeyCode};
 use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SessionsState {
     pub selected: usize,
     pub query: String,
