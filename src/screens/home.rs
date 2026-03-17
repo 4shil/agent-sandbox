@@ -33,6 +33,9 @@ pub struct HomeScreen;
 pub struct HomeState {
     pub selected: usize,
     pub list_state: ratatui::widgets::ListState,
+    cached_sessions: Option<Vec<RecentSession>>,
+    cached_count: Option<usize>,
+    last_refresh: std::time::Instant,
 }
 
 impl Default for HomeState {
@@ -40,7 +43,16 @@ impl Default for HomeState {
         Self {
             selected: 0,
             list_state: ratatui::widgets::ListState::default(),
+            cached_sessions: None,
+            cached_count: None,
+            last_refresh: std::time::Instant::now(),
         }
+    }
+}
+
+impl HomeState {
+    fn should_refresh(&self) -> bool {
+        self.last_refresh.elapsed().as_millis() > 2000 || self.cached_sessions.is_none()
     }
 }
 
@@ -83,7 +95,7 @@ impl HomeScreen {
             .split(main_chunks[1]);
 
         render_agents(frame, body_chunks[0], theme, state);
-        render_recent_sessions(frame, body_chunks[1], theme);
+        render_recent_sessions(frame, body_chunks[1], theme, state);
 
         let hints = Paragraph::new(
             Line::from(" ↑↓ Navigate │ Enter Launch │ S Sessions │ D Stats │ Q Quit")
@@ -91,7 +103,13 @@ impl HomeScreen {
         );
         frame.render_widget(hints, main_chunks[2]);
 
-        let session_count = count_sessions();
+        let session_count = if state.should_refresh() {
+            let count = count_sessions();
+            state.cached_count = Some(count);
+            count
+        } else {
+            state.cached_count.unwrap_or(0)
+        };
         let agent_count = AGENTS.iter().filter(|(_, _, i)| *i).count();
         let status_text = format!("Sessions: {} │ Agents: {}", session_count, agent_count);
         let status = StatusBar::new(
@@ -162,8 +180,15 @@ pub fn selected_agent(state: &HomeState) -> Option<&'static str> {
     installed.get(state.selected).map(|(name, _, _)| *name)
 }
 
-fn render_recent_sessions(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let sessions = load_recent_sessions();
+fn render_recent_sessions(frame: &mut Frame, area: Rect, theme: &Theme, state: &mut HomeState) {
+    // Refresh cache only every 2 seconds
+    if state.should_refresh() {
+        state.cached_sessions = Some(load_recent_sessions());
+        state.last_refresh = std::time::Instant::now();
+    }
+
+    let empty = vec![];
+    let sessions = state.cached_sessions.as_ref().unwrap_or(&empty);
     let max_duration = sessions.iter().map(|s| s.duration_ms).max().unwrap_or(1);
 
     let items: Vec<ListItem> = sessions.iter().map(|s| {

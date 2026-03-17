@@ -31,7 +31,7 @@ impl App {
     }
 
     pub fn run(&mut self, terminal: &mut crate::tui::Terminal) -> Result<()> {
-        let event_loop = EventLoop::new(std::time::Duration::from_millis(250));
+        let event_loop = EventLoop::new(std::time::Duration::from_millis(50));
 
         while self.running {
             terminal.draw(|frame| self.render(frame))?;
@@ -47,7 +47,18 @@ impl App {
     fn handle_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::Key(key) => {
-                use crossterm::event::KeyCode;
+                use crossterm::event::{KeyCode, KeyModifiers};
+
+                // Ctrl+C / Ctrl+Q always quit
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    match key.code {
+                        KeyCode::Char('c') | KeyCode::Char('q') => {
+                            self.running = false;
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
 
                 if self.show_help {
                     match key.code {
