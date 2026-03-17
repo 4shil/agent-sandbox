@@ -10,7 +10,7 @@ use std::time::SystemTime;
 use crate::recorder;
 use crate::ui;
 
-const KNOWN_AGENTS: &[&str] = &["claude", "codex", "opencode", "gemini", "aider", "goose", "openclaw"];
+const KNOWN_AGENTS: &[&str] = &["claude", "codex", "opencode", "gemini", "aider", "goose"];
 
 pub fn get_workspaces_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());

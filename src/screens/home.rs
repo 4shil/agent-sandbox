@@ -26,7 +26,6 @@ const AGENTS: &[(&str, &str)] = &[
     ("gemini", "Gemini CLI"),
     ("aider", "Aider"),
     ("goose", "Goose"),
-    ("openclaw", "OpenClaw"),
 ];
 
 pub struct HomeScreen;

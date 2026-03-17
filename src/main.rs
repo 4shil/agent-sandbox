@@ -54,20 +54,6 @@ enum Commands {
     Stats,
     /// Watch sessions in real-time
     Watch,
-    /// Launch an AI assistant in an isolated sandbox
-    Assistant {
-        /// Agent to launch (e.g., openclaw)
-        agent: Option<String>,
-        /// Named instance (allows multiple instances)
-        #[arg(short, long)]
-        name: Option<String>,
-        /// List running instances
-        #[arg(long)]
-        list: bool,
-        /// Kill an instance by name
-        #[arg(long)]
-        kill: Option<String>,
-    },
 }
 
 #[derive(Clone, ValueEnum)]
@@ -80,7 +66,6 @@ const KNOWN_AGENTS: &[(&str, &str, &str)] = &[
     ("gemini", "Google Gemini CLI", "npm i -g @google/gemini-cli"),
     ("aider", "Aider", "pip install aider"),
     ("goose", "Block Goose", "pip install goose-ai"),
-    ("openclaw", "OpenClaw", "npm i -g openclaw"),
 ];
 
 fn main() -> Result<()> {
@@ -110,17 +95,6 @@ fn main() -> Result<()> {
             Commands::Timeline => session::show_timeline()?,
             Commands::Stats => session::show_stats()?,
             Commands::Watch => session::watch_sessions()?,
-            Commands::Assistant { agent, name, list, kill } => {
-                if *list {
-                    list_assistant_instances()?;
-                } else if let Some(kill_name) = kill {
-                    kill_assistant_instance(kill_name)?;
-                } else {
-                    let agent_name = agent.as_deref().unwrap_or("openclaw");
-                    let instance_name = name.as_deref().unwrap_or("default");
-                    launch_assistant(agent_name, instance_name)?;
-                }
-            }
         },
         None => {
             // Default to dashboard when no arguments given
@@ -259,114 +233,3 @@ complete -c abox -a "{}" -d "Agent""#, agents),
     Ok(())
 }
 
-// ─── Assistant Mode: Multiple isolated AI instances ────────────────────────
-
-fn get_assistants_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".agent-sandbox").join("assistants")
-}
-
-fn get_assistant_workspace(name: &str, agent: &str) -> PathBuf {
-    get_assistants_dir().join(format!("{}-{}", agent, name))
-}
-
-fn setup_assistant_workspace(workspace: &PathBuf) -> Result<()> {
-    std::fs::create_dir_all(workspace)?;
-    std::fs::create_dir_all(workspace.join(".config"))?;
-    std::fs::create_dir_all(workspace.join(".local/share"))?;
-    std::fs::create_dir_all(workspace.join(".local/state"))?;
-    std::fs::create_dir_all(workspace.join(".openclaw"))?;
-    std::fs::create_dir_all(workspace.join("workspace"))?;
-    Ok(())
-}
-
-fn launch_assistant(agent: &str, instance_name: &str) -> Result<()> {
-    if which::which(agent).is_err() {
-        eprintln!("  ✗ '{}' not found in PATH", agent);
-        std::process::exit(1);
-    }
-
-    let workspace = get_assistant_workspace(instance_name, agent);
-    setup_assistant_workspace(&workspace)?;
-
-    let meta = serde_json::json!({
-        "name": instance_name,
-        "agent": agent,
-        "workspace": workspace.display().to_string(),
-        "started_at": chrono::Local::now().to_rfc3339(),
-    });
-    std::fs::write(workspace.join("instance.json"), serde_json::to_string_pretty(&meta)?)?;
-
-    println!();
-    println!("  ╔══════════════════════════════════════════╗");
-    println!("  ║  🤖 Assistant: {} ({})", instance_name, agent);
-    println!("  ╠══════════════════════════════════════════╣");
-    println!("  ║  Workspace: {}", workspace.display());
-    println!("  ║  Isolated via env var redirection");
-    println!("  ║  Ctrl+D or exit to quit");
-    println!("  ╚══════════════════════════════════════════╝");
-    println!();
-
-    let _ = crossterm::terminal::disable_raw_mode();
-
-    let status = Command::new(agent)
-        .current_dir(workspace.join("workspace"))
-        .env("HOME", workspace.display().to_string())
-        .env("XDG_CONFIG_HOME", workspace.join(".config"))
-        .env("XDG_DATA_HOME", workspace.join(".local/share"))
-        .env("XDG_STATE_HOME", workspace.join(".local/state"))
-        .env("OPENCLAW_STATE_DIR", workspace.join(".openclaw"))
-        .env("ABOX_INSTANCE", instance_name)
-        .env("ABOX_WORKSPACE", workspace.join("workspace").display().to_string())
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status();
-
-    match status {
-        Ok(s) if s.success() => println!("\n  ✓ Instance '{}' exited cleanly", instance_name),
-        Ok(s) => println!("\n  ⚠ Instance '{}' exited with code {:?}", instance_name, s.code()),
-        Err(e) => eprintln!("\n  ✗ Failed to launch '{}': {}", agent, e),
-    }
-
-    Ok(())
-}
-
-fn list_assistant_instances() -> Result<()> {
-    let dir = get_assistants_dir();
-    println!();
-    println!("  🤖 Assistant Instances");
-    println!("  ─────────────────────────────────────");
-
-    if !dir.exists() {
-        println!("  (none)");
-        println!();
-        return Ok(());
-    }
-
-    let mut found = false;
-    for entry in std::fs::read_dir(&dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() { continue; }
-
-        if let Ok(content) = std::fs::read_to_string(path.join("instance.json")) {
-            if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&content) {
-                let name = meta["name"].as_str().unwrap_or("?");
-                let agent = meta["agent"].as_str().unwrap_or("?");
-                let started = meta["started_at"].as_str().unwrap_or("?");
-                println!("  ● {} ({}) — started {}", name, agent, started);
-                found = true;
-            }
-        }
-    }
-
-    if !found { println!("  (none)"); }
-    println!();
-    Ok(())
-}
-
-fn kill_assistant_instance(name: &str) -> Result<()> {
-    eprintln!("  ⚠ Kill not yet implemented for: {}", name);
-    Ok(())
-}
