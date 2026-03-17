@@ -56,6 +56,8 @@ impl App {
                         AppAction::Quit => self.running = false,
                         AppAction::GoHome => self.current_screen = Screen::Home,
                         AppAction::GoSessions => self.current_screen = Screen::Sessions(SessionsState::default()),
+                        AppAction::GoStats => self.current_screen = Screen::Stats,
+                        AppAction::GoTimeline => self.current_screen = Screen::Timeline,
                     }
                 } else {
                     self.current_screen.handle_key(key, &mut self.toasts);
@@ -81,6 +83,14 @@ impl App {
     pub fn quit(&mut self) {
         self.running = false;
     }
+}
+
+enum AppAction {
+    Quit,
+    GoHome,
+    GoSessions,
+}
+
 }
 
 enum AppAction {
