@@ -6,6 +6,7 @@ version = 4
 name = "abox"
 version = "1.0.0"
 dependencies = [
+ "agent-sandbox-core",
  "anyhow",
  "chrono",
  "clap",
@@ -15,12 +16,24 @@ dependencies = [
  "indicatif",
  "open",
  "ratatui 0.28.1",
+ "serde",
+ "serde_json",
+ "tui-textarea",
+ "tui-tree-widget",
+ "which",
+]
+
+[[package]]
+name = "agent-sandbox-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "colored",
  "rusqlite",
  "serde",
  "serde_json",
  "sysinfo",
- "tui-textarea",
- "tui-tree-widget",
  "uuid",
  "which",
 ]

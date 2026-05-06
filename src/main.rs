@@ -1,7 +1,3 @@
-mod db;
-mod sandbox;
-mod recorder;
-mod session;
 mod ui;
 mod tui;
 mod screens;
@@ -15,8 +11,10 @@ use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::Duration;
 
-use crate::sandbox::SandboxFs;
-use crate::recorder::Recorder;
+use agent_sandbox_core::sandbox::SandboxFs;
+use agent_sandbox_core::recorder::Recorder;
+
+use agent_sandbox_core::session;
 
 #[derive(Parser)]
 #[command(name = "abox")]

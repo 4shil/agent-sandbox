@@ -12,7 +12,7 @@ use crossterm::event::{KeyEvent, KeyCode};
 
 use crate::tui::Theme;
 use crate::tui::widgets::ToastManager;
-use crate::recorder::SessionRecord;
+use agent_sandbox_core::recorder::SessionRecord;
 
 #[derive(Default)]
 pub struct SessionsState {

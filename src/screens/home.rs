@@ -9,7 +9,7 @@ use crossterm::event::{KeyEvent, KeyCode};
 
 use crate::tui::Theme;
 use crate::tui::widgets::{StatusBar, ToastManager};
-use crate::recorder::SessionRecord;
+use agent_sandbox_core::recorder::SessionRecord;
 
 const LOGO: &str = r#"
     _____

@@ -9,7 +9,7 @@ use crossterm::event::{KeyEvent, KeyCode};
 
 use crate::tui::Theme;
 use crate::tui::widgets::{ToastManager, Toast};
-use crate::recorder::SessionRecord;
+use agent_sandbox_core::recorder::SessionRecord;
 use crate::screens::DetailState;
 
 pub struct DetailScreen;
