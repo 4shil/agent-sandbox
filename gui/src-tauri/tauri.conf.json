@@ -15,11 +15,24 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "updater": {
+        "all": true
       }
     },
     "bundle": {
       "active": true,
-      "targets": ["appimage", "deb"],
+      "targets": ["appimage", "deb", "rpm"],
+      "linux": {
+        "icon": "icons/128x128.png",
+        "category": "Development",
+        "deb": {
+          "depends": ["libgtk-3-0", "libsoup-3.0-0", "libjavascriptcoregtk-4.1-0"]
+        },
+        "appimage": {
+          " continous": false
+        }
+      },
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
