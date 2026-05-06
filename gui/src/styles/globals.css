@@ -1,3 +1,29 @@
-# ASCII Art Header for agent-sandbox GUI
-# Styling: No emojis, monospace, dark theme
-# This file will contain global styles including Tailwind imports
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ASCII Art Styling - No emojis, monospace, dark theme */
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #0a0a0f;
+    color: #dcdcff;
+}
+
+/* Override any emoji content */
+.emoji, [class*="emoji"] {
+    display: none !important;
+}
+
+/* ASCII Art specific styles */
+.ascii-art {
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre;
+    color: #64b4ff;
+    line-height: 1.2;
+}
+
+/* Dark theme overrides */
+.dark body {
+    background-color: #0a0a0f;
+    color: #dcdcff;
+}
